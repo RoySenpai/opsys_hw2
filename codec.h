@@ -15,53 +15,28 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include "codec.h"
+#ifndef _CODEC_H
+#define _CODEC_H
+
+#include <stddef.h>
 
 /*
- * Encodes a string by changing the case of each character.
+ * Function to encode a string.
  * 
- * @param input the string to encode
+ * @note The function should be implemented in codecA.c or codecB.c.
  * 
- * @param len The length of the string
+ * @param input The string to encode.
+ * 
+ * @param len The length of the string.
  * 
  * @return The encoded string or NULL if malloc failed.
 */
-char* encode(char* input, size_t len) {
-    char* output = malloc(len + 1);
-
-    if (output == NULL)
-    {
-        fprintf(stderr, "Error: malloc failed.\n");
-        return NULL;
-    }
-
-    for (size_t i = 0; i < len; ++i)
-    {
-        char tmp = *(input + i);
-
-        // To lower case
-        if (tmp > 0x40 && tmp < 0x5B)
-            tmp += 0x20;
-
-        // To upper case
-        else if (tmp > 0x60 && tmp < 0x7B)
-            tmp -= 0x20;
-        
-        *(output + i) = tmp;
-    }
-
-    // Add null terminator
-    *(output + len) = '\0';
-
-    return output;
-}
+char* encode(char* input, size_t len);
 
 /*
- * Decodes a string by changing the case of each character.
- * Since the encoding and decoding are the same, this function
- * simply calls the encode function.
+ * Function to decode a string.
+ * 
+ * @note The function should be implemented in codecA.c or codecB.c.
  * 
  * @param input The string to decode.
  * 
@@ -69,6 +44,6 @@ char* encode(char* input, size_t len) {
  * 
  * @return The decoded string or NULL if malloc failed.
 */
-char* decode(char* input, size_t len) {
-    return encode(input, len);
-}
+char* decode(char* input, size_t len);
+
+#endif
