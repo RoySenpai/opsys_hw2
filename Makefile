@@ -1,49 +1,57 @@
-# Author: Roy Simanovich and Linor Ronen (c) 2023
-# Description: Makefile for assignment 2 of course "Operating Systems" in Ariel University
-# Date: 2023-04
-# Version: 1.0
-# Course: Operating Systems
-# Assignment: 2
-# Exercise: 2
-# Compiler: gcc
-# OS: Linux
-# IDE: Visual Studio Code
 
+#########################################################################################
+# 				Operation Systems (OSs) Course Assignment 2 Makefile					#
+# 					Authors: Roy Simanovich and Linor Ronen (c) 2023					#
+# 			Description: This Makefile compiles the programs and libraries 				#
+# 								Date: 2023-04											#
+# 							Course: Operating Systems									#
+# 								  Assignment: 2											#
+# 								  Compiler: gcc											#
+# 									OS: Linux											#
+# 							IDE: Visual Studio Code										#
+#########################################################################################
 
-# Flags for the compiler
+# Flags for the compiler and linker.
 CC = gcc
 CFLAGS = -Wall 
 RM = rm -f
 SHAREDLIB = -shared
 DLIBFLAGS = -ldl
 
+# Phony targets - targets that are not files but commands to be executed by make.
 .PHONY: all clean
 
-# Default target - compile everything
+
+# Default target - compile everything and create the executables and libraries.
 all: cmp copy encode decode stshell
 
-# Programs
 
-# Part A
+############
+# Programs #
+############
+
+# Part A #
 cmp: cmp.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 copy: copy.o
 	$(CC) $(CFLAGS) -o $@ $^
 
-# Part B
+# Part B #
 encode: encode.o libcodecA.so libcodecB.so
 	$(CC) $(CFLAGS) $(DLIBFLAGS) -o $@ encode.o
 
 decode: decode.o libcodecA.so libcodecB.so
 	$(CC) $(CFLAGS) $(DLIBFLAGS) -o $@ decode.o
 
-# Part C
+# Part C #
 stshell: stshell.o
 	$(CC) $(CFLAGS) -o $@ $^
 
 
-# Libraries and shared libraries
+##################################
+# Libraries and shared libraries #
+##################################
 libcodecA.so: codecA.o
 	$(CC) $(CFLAGS) $(SHAREDLIB) -o $@ $^
 
@@ -57,11 +65,14 @@ codecB.o: codecB.c codec.h
 	$(CC) $(CFLAGS) -fPIC -c $^
 
 
-# Object files
+################
+# Object files #
+################
 %.o: %.c
 	$(CC) $(CFLAGS) -c $^
 	
-
-# Cleanup files
+#################
+# Cleanup files #
+#################
 clean:
-	$(RM) *.o *.a *.so *.dll *.dylib cmp copy encode decode stshell
+	$(RM) *.gch *.o *.a *.so *.dll *.dylib cmp copy encode decode stshell

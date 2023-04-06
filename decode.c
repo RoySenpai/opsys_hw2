@@ -22,30 +22,50 @@
 #include <dlfcn.h> // for dlopen, dlsym, dlclose
 
 /*
- * This function is used to decode a given text using a given codec.
+ * @brief This function is used to decode a given text using a given codec.
  *
  * @note The function is loaded dynamically from a shared library.
- * 
  * @note The returned pointer must be freed by the caller.
  * 
  * @param text The text to decode.
- * 
  * @param len The length of the text.
  * 
  * @return Pointer to the decoded text.
- * 
  * @return NULL if an error occurred.
 */
 char* (*decode)(char*, size_t);
 
+/*
+ * @brief This function is used to check if a given codec is valid.
+ * 
+ * @param codec The codec to check.
+ * 
+ * @return true if the codec is valid.
+ * @return false if the codec is invalid.
+*/
 bool isCodec(char* codec) {
     return strcmp(codec, "codecA") == 0 || strcmp(codec, "codecB") == 0;
 }
 
+/*
+ * @brief Decodes a given text using a given codec and print the result to stdout.
+ *
+ * @param codec The codec to be used.
+ * @param text The text to decode.
+ * 
+ * @return 0 if the operation was successful.
+ * @return 1 if an error occurred.
+ * 
+ * @note The program usage is: decode <codec type> <text>
+ * @note The codec type must be either codecA or codecB (case senestive).
+ * @note The text must not be empty.
+ * @note The program will print an error message to stderr if an error occurred.
+ * @note The program uses dynamic loading to load the decode function from a shared library.
+*/
 int main(int argc, char** argv) {
-    void* handle;
-    char* decoded;
-    size_t len;
+    void* handle = NULL;
+    char* decoded = NULL;
+    size_t len = 0;
 
     if (argc != 3)
     {
@@ -55,42 +75,38 @@ int main(int argc, char** argv) {
 
     if (!isCodec(argv[1]))
     {
-        fprintf(stderr, "Error: codec type must be either codecA or codecB.\n");
+        fprintf(stderr, "[Decoder] Error: codec type must be either codecA or codecB (case senestive).\n");
         return 1;
     }
 
-    if ((len = strlen(argv[2])) == 0)
+    if (!(len = strlen(argv[2])))
     {
-        fprintf(stderr, "Error: text must not be empty.\n");
+        fprintf(stderr, "[Decoder] Error: text must not be empty.\n");
         return 1;
     }
 
-    handle = dlopen((strcmp(argv[1], "codecA") == 0 ? "./libcodecA.so":"./libcodecB.so"), RTLD_LAZY);
-
-    if (!handle)
+    if ((handle = dlopen((strcmp(argv[1], "codecA") == 0 ? "./libcodecA.so":"./libcodecB.so"), RTLD_LAZY)) == NULL)
     {
-        fprintf(stderr, "Error: %s\n", dlerror());
+        fprintf(stderr, "[Decoder] Error: %s\n", dlerror());
         return 1;
     }
 
-    decode = dlsym(handle, "decode");
-
-    if (decode == NULL)
+    if ((decode = dlsym(handle, "decode")) == NULL)
     {
-        fprintf(stderr, "Error: %s\n", dlerror());
+        fprintf(stderr, "[Decoder] Error: %s\n", dlerror());
         return 1;
     }
 
-    decoded = decode(argv[2], len);
-
-    if (decoded == NULL)
+    if ((decoded = decode(argv[2], len)) == NULL)
     {
-        fprintf(stderr, "Fatal error\n");
+        fprintf(stderr, "[Decoder] Error: Falied to malloc.\n");
         return 1;
     }
 
     fprintf(stdout, "%s\n", decoded);
 
+    // Free resources and close the library handle (cleanup).
+    dlclose(handle);
     free(decoded);
 
     return 0;

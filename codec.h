@@ -21,28 +21,30 @@
 #include <stddef.h>
 
 /*
- * Function to encode a string.
- * 
- * @note The function should be implemented in codecA.c or codecB.c.
+ * @brief Function to encode a string.
  * 
  * @param input The string to encode.
- * 
  * @param len The length of the string.
  * 
  * @return The encoded string or NULL if malloc failed.
+ * 
+ * @note The function should be implemented in codecA.c and codecB.c.
+ * @note The function shouldn't change the original string.
+ * @note The function shouldn't be implemented in encode.c/decode.c.
 */
 char* encode(char* input, size_t len);
 
 /*
- * Function to decode a string.
- * 
- * @note The function should be implemented in codecA.c or codecB.c.
+ * @brief Function to decode a string.
  * 
  * @param input The string to decode.
- * 
  * @param len The length of the string.
  * 
  * @return The decoded string or NULL if malloc failed.
+ * 
+ * @note The function should be implemented in codecA.c and codecB.c.
+ * @note The function shouldn't change the original string.
+ * @note The function shouldn't be implemented in encode.c/decode.c.
 */
 char* decode(char* input, size_t len);
 

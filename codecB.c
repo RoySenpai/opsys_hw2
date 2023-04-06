@@ -20,10 +20,9 @@
 #include "codec.h"
 
 /*
- * Encodes a string by adding 3 to each character (in ASCII).
+ * @brief Encodes a string by adding 3 to each character (in ASCII).
  *
  * @param input The string to encode.
- * 
  * @param len The length of the string.
  * 
  * @return The encoded string or NULL if malloc failed.
@@ -32,10 +31,7 @@ char* encode(char* input, size_t len) {
     char* output = malloc(len + 1);
 
     if (output == NULL)
-    {
-        fprintf(stderr, "Error: malloc failed.\n");
         return NULL;
-    }
 
     for (size_t i = 0; i < len; ++i)
         *(output + i) = (*(input + i) + 0x03);
@@ -47,10 +43,9 @@ char* encode(char* input, size_t len) {
 }
 
 /*
- * Decodes a string by subtracting 3 from each character (in ASCII).
+ * @brief Decodes a string by subtracting 3 from each character (in ASCII).
  *
  * @param input The string to decode.
- * 
  * @param len The length of the string.
  * 
  * @return The decoded string or NULL if malloc failed.
@@ -59,10 +54,7 @@ char* decode(char* input, size_t len) {
     char* output = malloc(len + 1);
 
     if (output == NULL)
-    {
-        fprintf(stderr, "Error: malloc failed.\n");
         return NULL;
-    }
 
     for (size_t i = 0; i < len; ++i)
         *(output + i) = (*(input + i) - 0x03);

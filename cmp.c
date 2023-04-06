@@ -15,114 +15,140 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#include <argp.h>
 #include <stdio.h>
 #include <stdbool.h>
-#include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <ctype.h>
 
-const char *argp_program_version = "Compare v1.0";
+/*
+ * @brief Options for the cmp commands.
+ * @note OPT_NONE - no options (default).
+ * @note OPT_IGNORE_CASE - ignore case when comparing.
+ * @note OPT_VERBOSE - verbose output (print equal or distinct).
+*/
+typedef enum {
+    OPT_NONE = 0,
+    OPT_IGNORE_CASE = 1,
+    OPT_VERBOSE = 2
+} cmp_options;
 
-const char *argp_program_bug_address = "me@hiyorix.com";
-
-char doc[] = "The tool will compare two files, and return \"0\" if they are equal, and \"1\" if not.";
-
-char args_doc[] = "[FILENAME]...";
-
-struct argp_option options[] = { 
-    { "verbose", 'v', 0, 0, "Verbose output: the tool will print \"equal\" or \"distinct\", in addition to returning the int value."},
-    { "nocase", 'i', 0, 0, "Compare case insensitive instead of case sensitive."},
-    { 0 } 
-};
-
-struct arguments {
-    enum { NORMAL_MODE, VERBOSE_MODE } mode;
-    bool isCaseInsensitive;
-};
-
-static error_t parse_opt(int key, char *arg, struct argp_state *state) {
-    struct arguments *arguments = state->input;
-
-    switch (key)
-    {
-        case 'v': 
-        {
-            arguments->mode = VERBOSE_MODE;
-            break;
-        }
-
-        case 'i': 
-        {
-            arguments->isCaseInsensitive = true;
-            break;
-        }
-
-        case ARGP_KEY_ARG: return 0;
-
-        default: return ARGP_ERR_UNKNOWN;
-    }   
-
-    return 0;
-}
-
-static struct argp argp = { options, parse_opt, args_doc, doc, 0, 0, 0 };
-
+/*
+ * @brief Compare two files and print the result.
+ *
+ * @param f1 First file to compare (required).
+ * @param f2 Second file to compare (required).
+ * @param options Options for the cmp command (optional).
+ * 
+ * @return 0 if the files are equal (not distinct).
+ * @return 1 if they are distinct (not equal) or if an error occurred (e.g. file not found).
+ * 
+ * @note The user can provide the -i option to ignore case when comparing.
+ * @note The user can provide the -v option to print the result (equal or distinct).
+*/
 int main(int argc, char** argv) {
-    struct arguments arguments;
+    FILE *f1 = NULL, *f2 = NULL;
 
-    FILE *file1 = NULL, *file2 = NULL;
+    cmp_options options = OPT_NONE;
 
     char c1 = '\0', c2 = '\0';
-    bool isDifferent = false;
 
-    arguments.mode = NORMAL_MODE;
-    arguments.isCaseInsensitive = false;
+    bool equal = true;
 
-    argp_parse(&argp, argc, argv, 0, 0, &arguments);
-
-    if (argc < 2) {
-        fprintf(stderr, "Error: Missing arguments. Please provide two files to compare.\n");
+    // Check if the user provided enough arguments (2 files), otherwise print the usage.
+    // The options are optional.
+    if (argc < 3)
+    {
+        fprintf(stderr, "Usage: %s file1 file2 [-iv]\n", argv[0]);
         return 1;
     }
 
-    file1 = fopen(argv[3], "r");
-    file2 = fopen(argv[4], "r");
-
-    if (file1 == NULL || file2 == NULL)
+    // Parse the options
+    for (int i = 3; i < argc; ++i)
     {
-        fprintf(stderr, "Error: One or more files are missing.\n");
-        return -1;
+        if (strcmp(argv[i], "-i") == 0)
+            options |= OPT_IGNORE_CASE;
+        
+        else if (strcmp(argv[i], "-v") == 0)
+            options |= OPT_VERBOSE;
+
+        else
+        {
+            fprintf(stderr, "[CMP] Unknown option \"%s\".\n", argv[i]);
+            return 1;
+        }
     }
 
-    while (true)
-    {
-        c1 = fgetc(file1);
-        c2 = fgetc(file2);
+    f1 = fopen(argv[1], "r");
+    f2 = fopen(argv[2], "r");
 
-        if (arguments.isCaseInsensitive)
+    if (f1 == NULL)
+    {
+        if (options & OPT_VERBOSE)
+            fprintf(stderr, "[CMP] Error opening file \"%s\" for reading.\n", argv[1]);
+
+        return 2;
+    }
+
+    if (f2 == NULL)
+    {
+        if (options & OPT_VERBOSE)
+            fprintf(stderr, "[CMP] Error opening file \"%s\" for reading.\n", argv[2]);\
+        
+        return 2;
+    }
+
+    // Check the files size
+    fseek(f1, 0, SEEK_END);
+    fseek(f2, 0, SEEK_END);
+
+    // If the files are not the same size, they are distinct for sure
+    if (ftell(f1) != ftell(f2))
+    {
+        if (options & OPT_VERBOSE)
+            fprintf(stdout, "distinct\n");
+
+        fclose(f1);
+        fclose(f2);
+
+        return 1;
+    }
+
+    // Reset the file pointers
+    fseek(f1, 0, SEEK_SET);
+    fseek(f2, 0, SEEK_SET);
+
+    // Compare the files byte by byte.
+    while (equal)
+    {
+        c1 = fgetc(f1);
+        c2 = fgetc(f2);
+
+        if (c1 == EOF || c2 == EOF)
+            break;
+
+        if (options & OPT_IGNORE_CASE)
         {
             c1 = tolower(c1);
             c2 = tolower(c2);
         }
 
         if (c1 != c2)
-        {
-            isDifferent = true;
-            break;
-        }
-
-        if (c1 == EOF || c2 == EOF)
-        {
-            break;
-        }
+            equal = false;
     }
 
-    fclose(file1);
-    fclose(file2);
+    fclose(f1);
+    fclose(f2);
 
-    if (arguments.mode == VERBOSE_MODE)
-        printf("%s\n", isDifferent ? "distinct" : "equal");
+    if (!equal)
+    {
+        if (options & OPT_VERBOSE)
+            fprintf(stdout, "distinct\n");
 
-    return isDifferent;
+        return 1;
+    }
+
+    if (options & OPT_VERBOSE)
+        fprintf(stdout, "equal\n");
+
+    return 0;
 }

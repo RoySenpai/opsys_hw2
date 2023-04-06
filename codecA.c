@@ -20,11 +20,10 @@
 #include "codec.h"
 
 /*
- * Encodes a string by changing the case of each character.
+ * @brief Encodes a string by changing the case of each character.
  * 
- * @param input the string to encode
- * 
- * @param len The length of the string
+ * @param input the string to encode.
+ * @param len The length of the string.
  * 
  * @return The encoded string or NULL if malloc failed.
 */
@@ -32,10 +31,7 @@ char* encode(char* input, size_t len) {
     char* output = malloc(len + 1);
 
     if (output == NULL)
-    {
-        fprintf(stderr, "Error: malloc failed.\n");
         return NULL;
-    }
 
     for (size_t i = 0; i < len; ++i)
     {
@@ -59,9 +55,10 @@ char* encode(char* input, size_t len) {
 }
 
 /*
- * Decodes a string by changing the case of each character.
- * Since the encoding and decoding are the same, this function
- * simply calls the encode function.
+ * @brief Decodes a string by changing the case of each character.
+ * 
+ * @note Since the encoding and decoding are the same, this function 
+ *          simply calls the encode function.
  * 
  * @param input The string to decode.
  * 
