@@ -99,6 +99,7 @@ int main(int argc, char** argv) {
             if (options & OPT_VERBOSE)
                 fprintf(stderr, "target file exist\n");
 
+            fclose(f1);
             fclose(f2);
 
             return 1;
