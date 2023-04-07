@@ -1,26 +1,24 @@
-
-#########################################################################################
-# 				Operation Systems (OSs) Course Assignment 2 Makefile					#
-# 					Authors: Roy Simanovich and Linor Ronen (c) 2023					#
-# 			Description: This Makefile compiles the programs and libraries 				#
-# 								Date: 2023-04											#
-# 							Course: Operating Systems									#
-# 								  Assignment: 2											#
-# 								  Compiler: gcc											#
-# 									OS: Linux											#
-# 							IDE: Visual Studio Code										#
-#########################################################################################
+#################################################################################
+# 	Operation Systems (OSs) Course Assignment 2 Makefile			#
+# 	Authors: Roy Simanovich and Linor Ronen (c) 2023			#
+# 	Description: This Makefile compiles the programs and libraries 		#
+# 				Date: 2023-04					#
+# 			Course: Operating Systems				#
+# 				Assignment: 2					#
+# 				Compiler: gcc					#
+# 				OS: Linux					#
+# 			IDE: Visual Studio Code					#
+#################################################################################
 
 # Flags for the compiler and linker.
 CC = gcc
-CFLAGS = -Wall 
+CFLAGS = -Wall -Wextra -Werror -std=c11 -g
 RM = rm -f
 SHAREDLIB = -shared
 DLIBFLAGS = -ldl
 
 # Phony targets - targets that are not files but commands to be executed by make.
 .PHONY: all clean
-
 
 # Default target - compile everything and create the executables and libraries.
 all: cmp copy encode decode stshell

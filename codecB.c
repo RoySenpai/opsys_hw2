@@ -1,5 +1,6 @@
 /*
  *  Operation Systems (OSs) Course Assignment 2
+ *  Codec B shared library for encoding and decoding strings
  *  Copyright (C) 2023  Roy Simanovich and Linor Ronen
  * 
  *  This program is free software: you can redistribute it and/or modify
@@ -26,9 +27,11 @@
  * @param len The length of the string.
  * 
  * @return The encoded string or NULL if malloc failed.
+ * 
+ * @note The returned string must be freed by the caller.
 */
 char* encode(char* input, size_t len) {
-    char* output = malloc(len + 1);
+    char* output = (char*) malloc(len + 1);
 
     if (output == NULL)
         return NULL;
@@ -49,6 +52,8 @@ char* encode(char* input, size_t len) {
  * @param len The length of the string.
  * 
  * @return The decoded string or NULL if malloc failed.
+ * 
+ * @note The returned string must be freed by the caller.
 */
 char* decode(char* input, size_t len) {
     char* output = malloc(len + 1);

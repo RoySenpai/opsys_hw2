@@ -1,5 +1,6 @@
 /*
  *  Operation Systems (OSs) Course Assignment 2
+ *  Decoding program
  *  Copyright (C) 2023  Roy Simanovich and Linor Ronen
  * 
  *  This program is free software: you can redistribute it and/or modify
