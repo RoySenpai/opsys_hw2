@@ -23,6 +23,7 @@
 
 /*
  * @brief Options for the cmp commands.
+ *
  * @note OPT_NONE - no options (default).
  * @note OPT_IGNORE_CASE - ignore case when comparing.
  * @note OPT_VERBOSE - verbose output (print equal or distinct).
@@ -32,6 +33,17 @@ typedef enum {
     OPT_IGNORE_CASE = 1,
     OPT_VERBOSE = 2
 } cmp_options;
+
+/*
+ * @brief Result of the comparison.
+ *
+ * @note EQUAL - The files are equal.
+ * @note DISTINCT - The files are distinct, or an error occurred (e.g. file not found).
+*/
+typedef enum {
+    EQUAL = 0,
+    DISTINCT = 1
+} cmp_result;
 
 /*
  * @brief Compare two files and print the result.
@@ -59,43 +71,43 @@ int main(int argc, char** argv) {
     // The options are optional.
     if (argc < 3)
     {
-        fprintf(stderr, "Usage: %s file1 file2 [-iv]\n", argv[0]);
-        return 1;
+        fprintf(stderr, "Usage: %s file1 file2 [-iv]\n", *(argv));
+        return (int)DISTINCT;
     }
 
     // Parse the options
     for (int i = 3; i < argc; ++i)
     {
-        if (strcmp(argv[i], "-i") == 0)
+        if (strcmp(*(argv + i), "-i") == 0)
             options |= OPT_IGNORE_CASE;
         
-        else if (strcmp(argv[i], "-v") == 0)
+        else if (strcmp(*(argv + i), "-v") == 0)
             options |= OPT_VERBOSE;
 
         else
         {
-            fprintf(stderr, "[CMP] Unknown option \"%s\".\n", argv[i]);
-            return 1;
+            fprintf(stderr, "[CMP] Unknown option \"%s\".\n", *(argv + i));
+            return (int)DISTINCT;
         }
     }
 
-    f1 = fopen(argv[1], "r");
-    f2 = fopen(argv[2], "r");
+    f1 = fopen(*(argv + 1), "r");
+    f2 = fopen(*(argv + 2), "r");
 
     if (f1 == NULL)
     {
         if (options & OPT_VERBOSE)
-            fprintf(stderr, "[CMP] Error opening file \"%s\" for reading.\n", argv[1]);
+            fprintf(stderr, "[CMP] Error opening file \"%s\" for reading.\n", *(argv + 1));
 
-        return 2;
+        return (int)DISTINCT;
     }
 
     if (f2 == NULL)
     {
         if (options & OPT_VERBOSE)
-            fprintf(stderr, "[CMP] Error opening file \"%s\" for reading.\n", argv[2]);\
+            fprintf(stderr, "[CMP] Error opening file \"%s\" for reading.\n", *(argv + 2));
         
-        return 2;
+        return (int)DISTINCT;
     }
 
     // Check the files size
@@ -111,7 +123,7 @@ int main(int argc, char** argv) {
         fclose(f1);
         fclose(f2);
 
-        return 1;
+        return (int)DISTINCT;
     }
 
     // Reset the file pointers
@@ -145,11 +157,11 @@ int main(int argc, char** argv) {
         if (options & OPT_VERBOSE)
             fprintf(stdout, "distinct\n");
 
-        return 1;
+        return (int)DISTINCT;
     }
 
     if (options & OPT_VERBOSE)
         fprintf(stdout, "equal\n");
 
-    return 0;
+    return (int)EQUAL;
 }

@@ -25,7 +25,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-int main() {
+int main(void) {
 	int i;
 	char *argv[10];
 	char command[1024];

@@ -35,6 +35,17 @@ typedef enum {
 } copy_options;
 
 /*
+ * @brief The copy result.
+ *
+ * @note SUCCESS - The copy was successful.
+ * @note FAILURE - An error occurred (e.g. file not found).
+*/
+typedef enum {
+    SUCCESS = 0,
+    FAILURE = 1
+} copy_result;
+
+/*
  * @brief Copy a file to another file.
 
  * @param f1 First file to copy (required).
@@ -57,17 +68,17 @@ int main(int argc, char** argv) {
     // The options are optional.
     if (argc < 3)
     {
-        fprintf(stderr, "Usage: %s <source> <destination> [-vf]\n", argv[0]);
-        return 1;
+        fprintf(stderr, "Usage: %s <source> <destination> [-vf]\n", *(argv));
+        return (int)FAILURE;
     }
 
     // Parse the options.
     for (int i = 3; i < argc; ++i)
     {
-        if (strcmp(argv[i], "-v") == 0)
+        if (strcmp(*(argv + i), "-v") == 0)
             options |= OPT_VERBOSE;
 
-        else if (strcmp(argv[i], "-f") == 0)
+        else if (strcmp(*(argv + i), "-f") == 0)
             options |= OPT_FORCE;
         
         else
@@ -75,24 +86,24 @@ int main(int argc, char** argv) {
             if (options & OPT_VERBOSE)
                 fprintf(stderr, "general failure\n");
                 
-            return 1;
+            return (int)FAILURE;
         }
     }
 
-    f1 = fopen(argv[1], "r");
+    f1 = fopen(*(argv + 1), "r");
 
     if (f1 == NULL)
     {
         if (options & OPT_VERBOSE)
             fprintf(stderr, "general failure\n");
 
-        return 1;
+        return (int)FAILURE;
     }
 
-    // Check if the file already exists (and the user didn't provide the -f option).
+    // Check if the second file already exists (and the user didn't provide the -f option).
     if (!(options & OPT_FORCE))
     {
-        f2 = fopen(argv[2], "r");
+        f2 = fopen(*(argv + 2), "r");
 
         if (f2 != NULL)
         {
@@ -102,18 +113,18 @@ int main(int argc, char** argv) {
             fclose(f1);
             fclose(f2);
 
-            return 1;
+            return (int)FAILURE;
         }
     }
 
-    f2 = fopen(argv[2], "w");
+    f2 = fopen(*(argv + 2), "w");
 
     if (f2 == NULL)
     {
         if (options & OPT_VERBOSE)
             fprintf(stderr, "general failure\n");
         
-        return 1;
+        return (int)FAILURE;
     }
 
     // Copy the file to the destination, byte by byte.
@@ -126,5 +137,5 @@ int main(int argc, char** argv) {
     if (options & OPT_VERBOSE)
         fprintf(stdout, "success\n");
 
-    return 0;
+    return (int)SUCCESS;
 }

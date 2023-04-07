@@ -23,6 +23,17 @@
 #include <dlfcn.h> // for dlopen, dlsym, dlclose
 
 /*
+ * @brief The encode result.
+ *
+ * @note SUCCESS - The encode was successful.
+ * @note FAILURE - An error occurred (e.g. library not found, wrong arguments).
+*/
+typedef enum {
+    SUCCESS = 0,
+    FAILURE = 1
+} encode_result;
+
+/*
  * @brief This function is used to encode a given text using a given codec.
  *
  * @note The function is loaded dynamically from a shared library.
@@ -70,38 +81,38 @@ int main(int argc, char** argv) {
 
     if (argc != 3)
     {
-        fprintf(stderr, "Usage: %s <codec type> <text>\n", argv[0]);
-        return 1;
+        fprintf(stderr, "Usage: %s <codec type> <text>\n", *(argv));
+        return (int)FAILURE;
     }
 
-    if (!isCodec(argv[1]))
+    if (!isCodec(*(argv + 1)))
     {
         fprintf(stderr, "[Encoder] Error: codec type must be either codecA or codecB (case senestive).\n");
-        return 1;
+        return (int)FAILURE;
     }
 
-    if ((len = strlen(argv[2])) == 0)
+    if ((len = strlen(*(argv + 2))) == 0)
     {
         fprintf(stderr, "[Encoder] Error: text must not be empty.\n");
-        return 1;
+        return (int)FAILURE;
     }
 
-    if ((handle = dlopen((strcmp(argv[1], "codecA") == 0 ? "./libcodecA.so":"./libcodecB.so"), RTLD_LAZY)) == NULL)
+    if ((handle = dlopen((strcmp(*(argv + 1), "codecA") == 0 ? "./libcodecA.so":"./libcodecB.so"), RTLD_LAZY)) == NULL)
     {
         fprintf(stderr, "[Encoder] Error: %s\n", dlerror());
-        return 1;
+        return (int)FAILURE;
     }
 
     if ((encode = dlsym(handle, "encode")) == NULL)
     {
         fprintf(stderr, "[Encoder] Error: %s\n", dlerror());
-        return 1;
+        return (int)FAILURE;
     }
 
-    if ((encoded = encode(argv[2], len)) == NULL)
+    if ((encoded = encode(*(argv + 2), len)) == NULL)
     {
         fprintf(stderr, "[Encoder] Error: Falied to malloc.\n");
-        return 1;
+        return (int)FAILURE;
     }
 
     fprintf(stdout, "%s\n", encoded);
@@ -110,5 +121,5 @@ int main(int argc, char** argv) {
     dlclose(handle);
     free(encoded);
 
-    return 0;
+    return (int)SUCCESS;
 }
