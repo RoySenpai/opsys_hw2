@@ -91,8 +91,8 @@ int main(int argc, char** argv) {
         }
     }
 
-    f1 = fopen(*(argv + 1), "r");
-    f2 = fopen(*(argv + 2), "r");
+    f1 = fopen(*(argv + 1), "rb");
+    f2 = fopen(*(argv + 2), "rb");
 
     if (f1 == NULL)
     {

@@ -66,6 +66,9 @@ codecB.o: codecB.c codec.h
 ################
 # Object files #
 ################
+stshell.o: stshell.c stshell.h
+	$(CC) $(CFLAGS) -c $^
+
 %.o: %.c
 	$(CC) $(CFLAGS) -c $^
 	

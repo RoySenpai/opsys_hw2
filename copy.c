@@ -103,7 +103,7 @@ int main(int argc, char** argv) {
     // Check if the second file already exists (and the user didn't provide the -f option).
     if (!(options & OPT_FORCE))
     {
-        f2 = fopen(*(argv + 2), "r");
+        f2 = fopen(*(argv + 2), "rb");
 
         if (f2 != NULL)
         {
@@ -117,7 +117,7 @@ int main(int argc, char** argv) {
         }
     }
 
-    f2 = fopen(*(argv + 2), "w");
+    f2 = fopen(*(argv + 2), "wb");
 
     if (f2 == NULL)
     {
