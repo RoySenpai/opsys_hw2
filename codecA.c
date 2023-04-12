@@ -30,23 +30,23 @@
  * 
  * @note The returned string must be freed by the caller.
 */
-char* encode(char* input, size_t len) {
-    char* output = (char*) malloc(len + 1);
+unsigned char* encode(unsigned char* input, size_t len) {
+    unsigned char* output = (unsigned char*) malloc(len + 1);
 
     if (output == NULL)
         return NULL;
 
     for (size_t i = 0; i < len; ++i)
     {
-        char tmp = *(input + i);
+        unsigned char tmp = *(input + i);
 
         // To lower case
         if (tmp > 0x40 && tmp < 0x5B)
-            tmp += 0x20;
+            tmp += U_CHAR_CASE;
 
         // To upper case
         else if (tmp > 0x60 && tmp < 0x7B)
-            tmp -= 0x20;
+            tmp -= U_CHAR_CASE;
         
         *(output + i) = tmp;
     }
@@ -69,6 +69,6 @@ char* encode(char* input, size_t len) {
  * @note Since the encoding and decoding are the same, this function 
  *          simply calls the encode function.
 */
-char* decode(char* input, size_t len) {
+unsigned char* decode(unsigned char* input, size_t len) {
     return encode(input, len);
 }

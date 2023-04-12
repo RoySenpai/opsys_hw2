@@ -66,7 +66,7 @@ int main(int argc, char** argv) {
 
     // Check if the user provided enough arguments (2 files), otherwise print the usage.
     // The options are optional.
-    if (argc < 3)
+    if (argc < 3 || argc > 5)
     {
         fprintf(stderr, "Usage: %s <source> <destination> [-vf]\n", *(argv));
         return (int)FAILURE;

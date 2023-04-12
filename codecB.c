@@ -30,14 +30,14 @@
  * 
  * @note The returned string must be freed by the caller.
 */
-char* encode(char* input, size_t len) {
-    char* output = (char*) malloc(len + 1);
+unsigned char* encode(unsigned char* input, size_t len) {
+    unsigned char* output = (unsigned char*) malloc(len + 1);
 
     if (output == NULL)
         return NULL;
 
     for (size_t i = 0; i < len; ++i)
-        *(output + i) = (*(input + i) + 0x03);
+        *(output + i) = ((*(input + i) + U_CHAR_ADDITION) % U_CHAR_MODULUS);
 
     // Add null terminator
     *(output + len) = '\0';
@@ -55,14 +55,14 @@ char* encode(char* input, size_t len) {
  * 
  * @note The returned string must be freed by the caller.
 */
-char* decode(char* input, size_t len) {
-    char* output = malloc(len + 1);
+unsigned char* decode(unsigned char* input, size_t len) {
+    unsigned char* output = (unsigned char*) malloc(len + 1);
 
     if (output == NULL)
         return NULL;
 
     for (size_t i = 0; i < len; ++i)
-        *(output + i) = (*(input + i) - 0x03);
+        *(output + i) = ((*(input + i) - U_CHAR_ADDITION) % U_CHAR_MODULUS);
 
     // Add null terminator
     *(output + len) = '\0';

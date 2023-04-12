@@ -21,6 +21,39 @@
 
 #include <stddef.h>
 
+/*********************/
+/* Predefined values */
+/*********************/
+
+/*
+ * @brief The case value for the encoding/decoding.
+ *
+ * @note The case value is used to determine if a character is upper or lower case.
+ * @note Used in codecA.c.
+*/
+#define U_CHAR_CASE 0x20
+
+/*
+ * @brief The addition/subtraction value for the encoding/decoding.
+ *
+ * @note The addition/subtraction value is used to determine if a character is upper or lower case.
+ * @note Used in codecB.c.
+*/
+#define U_CHAR_ADDITION 0x03
+
+/* 
+ * @brief The modulus value for the encoding/decoding.
+ *
+ * @note The modulus value is used to avoid overflow.
+ * @note Used in codecB.c.
+*/
+#define U_CHAR_MODULUS 0xFF
+
+
+/*************************/
+/* Function declerations */
+/*************************/
+
 /*
  * @brief Function to encode a string.
  * 
@@ -33,7 +66,7 @@
  * @note The function shouldn't change the original string.
  * @note The function shouldn't be implemented in encode.c/decode.c.
 */
-char* encode(char* input, size_t len);
+unsigned char* encode(unsigned char* input, size_t len);
 
 /*
  * @brief Function to decode a string.
@@ -47,6 +80,6 @@ char* encode(char* input, size_t len);
  * @note The function shouldn't change the original string.
  * @note The function shouldn't be implemented in encode.c/decode.c.
 */
-char* decode(char* input, size_t len);
+unsigned char* decode(unsigned char* input, size_t len);
 
 #endif

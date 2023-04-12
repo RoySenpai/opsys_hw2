@@ -45,7 +45,7 @@ typedef enum {
  * @return Pointer to the encoded text.
  * @return NULL if an error occurred.
 */
-char* (*encode)(char*, size_t);
+unsigned char* (*encode)(unsigned char*, size_t);
 
 /*
  * @brief This function is used to check if a given codec is valid.
@@ -76,7 +76,7 @@ bool isCodec(char* codec) {
 */
 int main(int argc, char** argv) {
     void* handle = NULL;
-    char* encoded = NULL;
+    unsigned char* encoded = NULL;
     size_t len = 0;
 
     if (argc != 3)
@@ -109,7 +109,7 @@ int main(int argc, char** argv) {
         return (int)FAILURE;
     }
 
-    if ((encoded = encode(*(argv + 2), len)) == NULL)
+    if ((encoded = encode((unsigned char*)*(argv + 2), len)) == NULL)
     {
         fprintf(stderr, "[Encoder] Error: Falied to malloc.\n");
         return (int)FAILURE;
