@@ -234,15 +234,6 @@ typedef enum _Result
 char *append(char before, char *str, char after);
 
 /*
- * @brief Signal handler for SIGINT.
- * @param sig The signal number.
- * @return void (nothing).
- * @note This function does absolutely nothing,
- * 	 		and is used to ignore SIGINT.
- */
-void sigint_handler(int sig);
-
-/*
  * @brief Parse a command into arguments.
  * @param command The command to parse.
  * @param argv The array of arguments.

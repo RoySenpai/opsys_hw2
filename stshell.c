@@ -47,7 +47,7 @@ int main(void) {
 	homedir = getenv("HOME");
 
 	// Ignore SIGINT
-	signal(SIGINT, sigint_handler);
+	signal(SIGINT, SIG_IGN);
 
 	// Print copyright and license
 	fprintf(stdout,
@@ -143,22 +143,18 @@ char *append(char before, char *str, char after) {
     return str;
 }
 
-void sigint_handler(int sig) {
-	// Do absolutely nothing
-	if (sig == SIGINT)
-	{
-		if (DEBUG_MODE)
-			fprintf(stdout, "Interrupt signal\n");
-
-		return;
-	}
-}
-
 CommandType parse_command(char* command, char** argv) {
 	char **pargv = argv;
 	char* token = NULL;
 	int words = 1;
 	size_t i = 0, j = 0;
+
+	// Remove the newline character from the command, to check if it's empty.
+	command = strtok(command, "\n");
+
+	// Safe-fail if the command is empty, to avoid segmentation fault.
+	if (command == NULL || strlen(command) == 0)
+		return Internal;
 
 	// Count the number of words.
 	for (size_t k = 0; k < strlen(command); ++k)
@@ -189,8 +185,7 @@ CommandType parse_command(char* command, char** argv) {
 	if (j > 0)
 		*(command + j) = '\0';
 
-	// Parse the command - first parse according to \n and then according to " ".
-	command = strtok(command, "\n");
+	// Parse the first argument (the command itself).
 	token = strtok(command, " ");
 
 	// Exit command.
