@@ -19,6 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <strings.h>
 #include <string.h>
 #include <signal.h>
 #include <sys/stat.h>
@@ -29,6 +30,95 @@
 char *homedir = NULL;
 char *workingdir = NULL;
 char *cwd = NULL;
+
+int main(void) {
+	char **argv = NULL;
+	char command[MAX_COMMAND_LENGTH + 1] = {0};
+
+	cwd = (char*) calloc((MAX_PATH_LENGTH + 1), sizeof(char));
+	argv = (char**) calloc((MAX_ARGS + 1), sizeof(char*));
+
+	if (cwd == NULL || argv == NULL)
+	{
+		fprintf(stderr, "%s: calloc error (%s)\n", ERR_SYSCALL, strerror(errno));
+		return EXIT_FAILURE;
+	}
+
+	homedir = getenv("HOME");
+
+	// Ignore SIGINT
+	signal(SIGINT, sigint_handler);
+
+	// Print copyright and license
+	fprintf(stdout,
+			"Student Shell  Copyright (C) 2023  Roy Simanovich and Linor Ronen\n"
+			"This program comes with ABSOLUTELY NO WARRANTY.\n"
+			"This is free software, and you are welcome to redistribute it\n"
+			"under certain conditions; type `gnu' for details.\n\n");
+
+	while (1)
+	{
+		if (getcwd(cwd, MAX_PATH_LENGTH) == NULL)
+		{
+			fprintf(stderr, "%s\n", ERR_SYSCALL);
+			return EXIT_FAILURE;
+		}
+
+		for (size_t i = 0; i < MAX_ARGS; ++i)
+		{
+			*(argv + i) = (char*) calloc((MAX_ARG_LENGTH + 1), sizeof(char));
+
+			if (*(argv + i) == NULL)
+			{
+				fprintf(stderr, "%s: calloc error (%s)\n", ERR_SYSCALL, strerror(errno));;
+
+				// Memory cleanup in case of calloc error.
+				for (size_t j = 0; j < i; ++j)
+					free(*(argv + j));
+
+				free(argv);
+				free(cwd);
+
+				return EXIT_FAILURE;
+			}
+		}
+
+		// Print the prompt.
+		fprintf(stdout, "%s %s", cwd, "> ");
+		fflush(stdout);
+
+		// Read a command from the user.
+		fgets(command, MAX_COMMAND_LENGTH, stdin);
+		
+		// Check if the command is an internal command.
+		if (parse_command(command, argv) == Internal)
+		{
+			if (DEBUG_MODE)
+				fprintf(stdout, "Finished executing internal command.\n");
+
+			continue;
+		}
+
+		// This is an external command, so we need to execute it with execvp.
+		execute_command(argv);
+
+		if (DEBUG_MODE)
+			fprintf(stdout, "Finished executing external command.\n");
+
+		// Clear the arguments.
+		for (size_t i = 0; i < MAX_ARGS; ++i)
+			free(*(argv + i));
+
+		// Clear the command.
+		bzero(command, (MAX_COMMAND_LENGTH + 1));
+	}
+
+	// Memory cleanup.
+	free(argv);
+	free(cwd);
+
+	return EXIT_SUCCESS;
+}
 
 char *append(char before, char *str, char after) {
     size_t len = strlen(str);
@@ -59,70 +149,10 @@ void sigint_handler(int sig) {
 	}
 }
 
-int main(void) {
-	char* argv[MAX_ARGS + 1] = { NULL };
-	char command[MAX_COMMAND_LENGTH] = { 0 };
-
-	cwd = (char*) calloc((MAX_PATH_LENGTH + 1), sizeof(char));
-
-	if (cwd == NULL)
-	{
-		fprintf(stderr, "%s: calloc error\n", ERR_SYSCALL);
-		return EXIT_FAILURE;
-	}
-
-	homedir = getenv("HOME");
-
-	// Ignore SIGINT
-	signal(SIGINT, sigint_handler);
-
-	// Print copyright and license
-	fprintf(stdout,
-			"Student Shell  Copyright (C) 2023  Roy Simanovich and Linor Ronen\n"
-			"This program comes with ABSOLUTELY NO WARRANTY.\n"
-			"This is free software, and you are welcome to redistribute it\n"
-			"under certain conditions; type `gnu' for details.\n\n");
-
-	while (1)
-	{
-		if (getcwd(cwd, MAX_COMMAND_LENGTH) == NULL)
-		{
-			fprintf(stderr, "%s\n", ERR_SYSCALL);
-			return EXIT_FAILURE;
-		}
-
-		// Print the prompt.
-		fprintf(stdout, "%s %s", cwd, "> ");
-		fflush(stdout);
-
-		// Read a command from the user.
-		fgets(command, MAX_COMMAND_LENGTH, stdin);
-		
-		// Check if the command is an internal command.
-		if (parse_command(command, argv) == Internal)
-		{
-			if (DEBUG_MODE)
-				fprintf(stdout, "Finished executing internal command.\n");
-
-			continue;
-		}
-
-		// This is an external command, so we need to execute it with execvp.
-		execute_command(argv);
-
-		if (DEBUG_MODE)
-			fprintf(stdout, "Finished executing external command.\n");
-	}
-
-	free(cwd);
-
-	return EXIT_SUCCESS;
-}
-
 CommandType parse_command(char* command, char** argv) {
-	char **org_argv = argv;
+	char **pargv = argv;
 	char* token = NULL;
-	int words = 0;
+	int words = 1;
 	size_t i = 0, j = 0;
 
 	// Count the number of words.
@@ -132,7 +162,11 @@ CommandType parse_command(char* command, char** argv) {
 			++words;
 	}
 
-	++words;
+	if (words > MAX_ARGS)
+	{
+		fprintf(stderr, "%s: %s\n", ERR_SYSCALL, ERR_TOO_MANY_ARGS);
+		return Internal;
+	}
 
 	// Remove quotes from the command.
 	for (i = 0; i < strlen(command); ++i)
@@ -157,7 +191,16 @@ CommandType parse_command(char* command, char** argv) {
 	// Exit command.
 	if (strcmp(token, CMD_EXIT) == 0)
 	{
+		// Free the memory allocated for the current working directory.
 		free(cwd);
+
+		// Free the memory allocated for the arguments.
+		for (size_t i = 0; i < MAX_ARGS; ++i)
+			free(*(argv + i));
+
+		// Free the memory allocated for the arguments array.
+		free(argv);
+
         exit(EXIT_SUCCESS);
 	}
 
@@ -193,24 +236,29 @@ CommandType parse_command(char* command, char** argv) {
 	// Parse the arguments (if there are any).
 	while (token != NULL)
 	{
-		*argv++ = token;
+		memcpy(*pargv, token, strlen(token));
+		++pargv;
 		token = strtok(NULL, " ");
 	}
 
-	*argv = NULL;
+	// Set the last argument to NULL, as required by execvp.
+	// By definition, the last argument must be NULL, as we allocate just enough memory for the arguments.
+	*pargv = NULL;
 
 	// Check if the command is a special command (cmp, copy, encode, decode).
 	// If it is, we need to append the current working directory to the command.
 	// This is because the special commands are located in the same directory as the shell.
-	// TODO: This is a very bad way to do this. Find a better way.
-	// TODO: Fix this!
-	if (strcmp(*org_argv, CMD_CMP) == 0 || strcmp(*org_argv, CMD_COPY) == 0 || strcmp(*org_argv, CMD_ENCODE) == 0 || strcmp(*org_argv, CMD_DECODE) == 0)
+	if (strcmp(*argv, CMD_CMP) == 0 || strcmp(*argv, CMD_COPY) == 0 || strcmp(*argv, CMD_ENCODE) == 0 || strcmp(*argv, CMD_DECODE) == 0)
 	{
 		if (DEBUG_MODE)
-			fprintf(stdout, "Special command: %s\n", *org_argv);
+			fprintf(stdout, "Special internal command: %s\n", *argv);
 
-		append('/', *org_argv, '\0');
-		append('.', *org_argv, '\0');
+		append('/', *argv, '\0');
+		append('.', *argv, '\0');
+
+		execute_command(argv);
+
+		return Internal;
 	}
 
 	// This is an external command.
@@ -281,10 +329,8 @@ void execute_command(char** argv) {
 
 	if (DEBUG_MODE)
 	{
-		fprintf(stdout, "Executing external command.\n");
-		//fprintf(stdout, "Command: %s\n", *argv);
-
 		char** tmp = argv;
+		fprintf(stdout, "Executing external command: %s.\n",*tmp++);
 
 		while (*tmp != NULL)
 			fprintf(stdout, "Argument: %s\n", *tmp++);
@@ -294,7 +340,7 @@ void execute_command(char** argv) {
 
 	if (pid < 0)
 	{
-		fprintf(stderr, "%s\n", ERR_SYSCALL);
+		fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
 		exit(EXIT_FAILURE);
 	}
 

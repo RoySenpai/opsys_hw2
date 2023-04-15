@@ -30,7 +30,7 @@
  * @note 0 - Debug mode is off.
  * @note 1 - Debug mode is on.
 */
-#define DEBUG_MODE 1
+#define DEBUG_MODE 0
 
 /*
  * @brief Maximum command length.
@@ -42,9 +42,16 @@
 /*
  * @brief Maximum number of arguments.
  * @note More than this number of arguments will be truncated.
- * @note The default value is 10.
+ * @note The default value is 10 arguments.
  */
 #define MAX_ARGS 10
+
+/*
+ * @brief Maximum argument length.
+ * @note Arguments longer than this will be truncated.
+ * @note The default value is 256 characters.
+*/
+#define MAX_ARG_LENGTH 256
 
 /*
  * @brief Maximum path length.
@@ -99,6 +106,12 @@
  * @note Used to indicate that the command was not found.
 */
 #define ERR_CMD_NOT_FOUND "Command not found"
+
+/*
+ * @brief Too many arguments error message.
+ * @note Used to indicate that the user provided too many arguments to the command.
+*/
+#define ERR_TOO_MANY_ARGS "Too many arguments"
 
 
 /*******************/
