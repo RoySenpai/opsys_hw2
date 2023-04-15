@@ -37,10 +37,10 @@ copy: copy.o
 
 # Part B #
 encode: encode.o libcodecA.so libcodecB.so
-	$(CC) $(CFLAGS) $(DLIBFLAGS) -o $@ encode.o
+	$(CC) $(CFLAGS) -o $@ encode.o $(DLIBFLAGS)
 
 decode: decode.o libcodecA.so libcodecB.so
-	$(CC) $(CFLAGS) $(DLIBFLAGS) -o $@ decode.o
+	$(CC) $(CFLAGS) -o $@ decode.o $(DLIBFLAGS)
 
 # Part C #
 stshell: stshell.o

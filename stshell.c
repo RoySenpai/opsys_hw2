@@ -96,6 +96,9 @@ int main(void) {
 			if (DEBUG_MODE)
 				fprintf(stdout, "Finished executing internal command.\n");
 
+			for (size_t i = 0; i < MAX_ARGS; ++i)
+				free(*(argv + i));
+
 			continue;
 		}
 
@@ -125,7 +128,9 @@ char *append(char before, char *str, char after) {
 
     if(before)
     {
-        memmove(str + 1, str, ++len);
+		for (size_t i = len; i > 0; --i)
+			*(str + i) = *(str + i - 1);
+
     	*str = before;
     }
 
@@ -191,9 +196,6 @@ CommandType parse_command(char* command, char** argv) {
 	// Exit command.
 	if (strcmp(token, CMD_EXIT) == 0)
 	{
-		// Free the memory allocated for the current working directory.
-		free(cwd);
-
 		// Free the memory allocated for the arguments.
 		for (size_t i = 0; i < MAX_ARGS; ++i)
 			free(*(argv + i));
@@ -201,12 +203,17 @@ CommandType parse_command(char* command, char** argv) {
 		// Free the memory allocated for the arguments array.
 		free(argv);
 
+		// Free the memory allocated for the current working directory.
+		free(cwd);
+
+		// Exit the program.
         exit(EXIT_SUCCESS);
 	}
 
 	// Change directory command.
 	else if (strcmp(token, CMD_CD) == 0)
 	{
+		// Get the next token, which is the directory to change to.
 		token = strtok(NULL, " ");
 		cmdCD(token, words);
 		return Internal;
@@ -215,6 +222,7 @@ CommandType parse_command(char* command, char** argv) {
 	// Clean screen command.
 	else if (strcmp(token, CMD_CLEAR) == 0)
 	{
+		// Write the clear screen command to the standard output.
 		write(STDOUT_FILENO, CMD_CLEAR_FLUSH, CMD_CLEAR_FLUSH_LEN);
 		return Internal;
 	}
@@ -243,7 +251,12 @@ CommandType parse_command(char* command, char** argv) {
 
 	// Set the last argument to NULL, as required by execvp.
 	// By definition, the last argument must be NULL, as we allocate just enough memory for the arguments.
-	*pargv = NULL;
+	// We also make sure to free the memory allocated for the last argument, to avoid memory leaks.
+	if (*pargv != NULL)
+	{
+		free(*pargv);
+		*pargv = NULL;
+	}
 
 	// Check if the command is a special command (cmp, copy, encode, decode).
 	// If it is, we need to append the current working directory to the command.
@@ -253,11 +266,16 @@ CommandType parse_command(char* command, char** argv) {
 		if (DEBUG_MODE)
 			fprintf(stdout, "Special internal command: %s\n", *argv);
 
-		append('/', *argv, '\0');
-		append('.', *argv, '\0');
+		// Append the current working directory to the command.
+		*argv = append('/', *argv, '\0');
+		*argv = append('.', *argv, '\0');
 
+		// Execute the command as an external command.
+		// Since the command is actually run from different program, we need to use execvp.
+		// We also need to pass the arguments to the program.
 		execute_command(argv);
 
+		// We still need to return Internal, because we want the shell to continue running and not accidentally run the command again.
 		return Internal;
 	}
 
@@ -266,6 +284,7 @@ CommandType parse_command(char* command, char** argv) {
 }
 
 Result cmdCD(char *path, int argc) {
+	// Only one argument is allowed, like in the original shell.
 	if (argc > 2)
 	{
 		fprintf(stderr, "%s\n", ERR_CMD_CD_ARG);
@@ -288,6 +307,7 @@ Result cmdCD(char *path, int argc) {
 			return Success;
 		}
 
+		// Previous directory.
 		else if (strcmp(path, "-") == 0)
 		{
 			if (strcmp(workingdir, "") == 0)
@@ -309,6 +329,7 @@ Result cmdCD(char *path, int argc) {
 		}		
 	}
 
+	// No arguments - go to home directory.
 	else
 	{
 		getcwd(workingdir, MAX_PATH_LENGTH);
@@ -344,9 +365,9 @@ void execute_command(char** argv) {
 		exit(EXIT_FAILURE);
 	}
 
+	// Child process, execute the command, and print an error if it fails.
 	if (pid == 0)
 	{
-		// Child process, execute the command, and print an error if it fails.
 		if (execvp(*argv, argv) == -1)
 		{
 			fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
@@ -357,9 +378,10 @@ void execute_command(char** argv) {
 		exit(EXIT_SUCCESS);
 	}
 
+	// Parent process, wait for the child process to finish, 
+	// as we don't support background processes (this is too advanced for this assignment).
 	else
 	{
-		// Parent process, wait for the child process to finish.
 		do
 			waited = waitpid(pid, &status, WNOHANG);
 		
