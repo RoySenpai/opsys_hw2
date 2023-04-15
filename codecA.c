@@ -22,12 +22,9 @@
 
 /*
  * @brief Encodes a string by changing the case of each character.
- * 
  * @param input the string to encode.
  * @param len The length of the string.
- * 
  * @return The encoded string or NULL if malloc failed.
- * 
  * @note The returned string must be freed by the caller.
 */
 unsigned char* encode(unsigned char* input, size_t len) {
@@ -59,12 +56,9 @@ unsigned char* encode(unsigned char* input, size_t len) {
 
 /*
  * @brief Decodes a string by changing the case of each character.
- * 
  * @param input The string to decode.
  * @param len The length of the string.
- * 
  * @return The decoded string or NULL if malloc failed.
- * 
  * @note The returned string must be freed by the caller.
  * @note Since the encoding and decoding are the same, this function 
  *          simply calls the encode function.

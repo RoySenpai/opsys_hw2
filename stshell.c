@@ -30,6 +30,24 @@ char *homedir = NULL;
 char *workingdir = NULL;
 char *cwd = NULL;
 
+char *append(char before, char *str, char after) {
+    size_t len = strlen(str);
+
+    if(before)
+    {
+        memmove(str + 1, str, ++len);
+    	*str = before;
+    }
+
+    if(after)
+    {
+        *(str + len) = after;
+        *(str + len + 1) = '\0';
+    }
+
+    return str;
+}
+
 void sigint_handler(int sig) {
 	// Do absolutely nothing
 	if (sig == SIGINT)
@@ -42,14 +60,14 @@ void sigint_handler(int sig) {
 }
 
 int main(void) {
-	char* argv[MAX_ARGS + 1];
+	char* argv[MAX_ARGS + 1] = { NULL };
 	char command[MAX_COMMAND_LENGTH] = { 0 };
 
-	cwd = (char*) malloc(MAX_COMMAND_LENGTH * sizeof(char));
+	cwd = (char*) calloc((MAX_PATH_LENGTH + 1), sizeof(char));
 
 	if (cwd == NULL)
 	{
-		fprintf(stderr, "%s: malloc error\n", ERR_SYSCALL);
+		fprintf(stderr, "%s: calloc error\n", ERR_SYSCALL);
 		return EXIT_FAILURE;
 	}
 
@@ -102,6 +120,7 @@ int main(void) {
 }
 
 CommandType parse_command(char* command, char** argv) {
+	char **org_argv = argv;
 	char* token = NULL;
 	int words = 0;
 	size_t i = 0, j = 0;
@@ -180,6 +199,20 @@ CommandType parse_command(char* command, char** argv) {
 
 	*argv = NULL;
 
+	// Check if the command is a special command (cmp, copy, encode, decode).
+	// If it is, we need to append the current working directory to the command.
+	// This is because the special commands are located in the same directory as the shell.
+	// TODO: This is a very bad way to do this. Find a better way.
+	// TODO: Fix this!
+	if (strcmp(*org_argv, CMD_CMP) == 0 || strcmp(*org_argv, CMD_COPY) == 0 || strcmp(*org_argv, CMD_ENCODE) == 0 || strcmp(*org_argv, CMD_DECODE) == 0)
+	{
+		if (DEBUG_MODE)
+			fprintf(stdout, "Special command: %s\n", *org_argv);
+
+		append('/', *org_argv, '\0');
+		append('.', *org_argv, '\0');
+	}
+
 	// This is an external command.
 	return External;
 }
@@ -244,8 +277,18 @@ Result cmdCD(char *path, int argc) {
 
 void execute_command(char** argv) {
 	pid_t pid;
-    int status;
-    int waited;
+	int status, waited;
+
+	if (DEBUG_MODE)
+	{
+		fprintf(stdout, "Executing external command.\n");
+		//fprintf(stdout, "Command: %s\n", *argv);
+
+		char** tmp = argv;
+
+		while (*tmp != NULL)
+			fprintf(stdout, "Argument: %s\n", *tmp++);
+	}
 
 	pid = fork();
 
@@ -272,9 +315,7 @@ void execute_command(char** argv) {
 	{
 		// Parent process, wait for the child process to finish.
 		do
-		{
 			waited = waitpid(pid, &status, WNOHANG);
-		}
 		
 		while (waited != pid);
 

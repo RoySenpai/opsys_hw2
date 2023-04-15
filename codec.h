@@ -27,7 +27,6 @@
 
 /*
  * @brief The case value for the encoding/decoding.
- *
  * @note The case value is used to determine if a character is upper or lower case.
  * @note Used in codecA.c.
 */
@@ -35,7 +34,6 @@
 
 /*
  * @brief The addition/subtraction value for the encoding/decoding.
- *
  * @note The addition/subtraction value is used to determine if a character is upper or lower case.
  * @note Used in codecB.c.
 */
@@ -43,7 +41,6 @@
 
 /* 
  * @brief The modulus value for the encoding/decoding.
- *
  * @note The modulus value is used to avoid overflow.
  * @note Used in codecB.c.
 */
@@ -56,12 +53,9 @@
 
 /*
  * @brief Function to encode a string.
- * 
  * @param input The string to encode.
  * @param len The length of the string.
- * 
  * @return The encoded string or NULL if malloc failed.
- * 
  * @note The function should be implemented in codecA.c and codecB.c.
  * @note The function shouldn't change the original string.
  * @note The function shouldn't be implemented in encode.c/decode.c.
@@ -70,12 +64,9 @@ unsigned char* encode(unsigned char* input, size_t len);
 
 /*
  * @brief Function to decode a string.
- * 
  * @param input The string to decode.
  * @param len The length of the string.
- * 
  * @return The decoded string or NULL if malloc failed.
- * 
  * @note The function should be implemented in codecA.c and codecB.c.
  * @note The function shouldn't change the original string.
  * @note The function shouldn't be implemented in encode.c/decode.c.

@@ -24,7 +24,6 @@
 
 /*
  * @brief The encode result.
- *
  * @note SUCCESS - The encode was successful.
  * @note FAILURE - An error occurred (e.g. library not found, wrong arguments).
 */
@@ -35,13 +34,10 @@ typedef enum {
 
 /*
  * @brief This function is used to encode a given text using a given codec.
- *
  * @note The function is loaded dynamically from a shared library.
  * @note The returned pointer must be freed by the caller.
- * 
  * @param text The text to encode.
  * @param len The length of the text.
- * 
  * @return Pointer to the encoded text.
  * @return NULL if an error occurred.
 */
@@ -49,9 +45,7 @@ unsigned char* (*encode)(unsigned char*, size_t);
 
 /*
  * @brief This function is used to check if a given codec is valid.
- * 
  * @param codec The codec to check.
- * 
  * @return true if the codec is valid.
  * @return false if the codec is invalid.
 */
@@ -61,13 +55,10 @@ bool isCodec(char* codec) {
 
 /*
  * @brief Encodes a given text using a given codec and print the result to stdout.
- *
  * @param codec The codec to be used.
  * @param text The text to encode.
- * 
  * @return 0 if the operation was successful.
  * @return 1 if an error occurred.
- * 
  * @note The program usage is: encode <codec type> <text>
  * @note The codec type must be either codecA or codecB (case senestive).
  * @note The text must not be empty.

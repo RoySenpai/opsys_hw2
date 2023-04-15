@@ -22,12 +22,9 @@
 
 /*
  * @brief Encodes a string by adding 3 to each character (in ASCII).
- *
  * @param input The string to encode.
  * @param len The length of the string.
- * 
  * @return The encoded string or NULL if malloc failed.
- * 
  * @note The returned string must be freed by the caller.
 */
 unsigned char* encode(unsigned char* input, size_t len) {
@@ -47,12 +44,9 @@ unsigned char* encode(unsigned char* input, size_t len) {
 
 /*
  * @brief Decodes a string by subtracting 3 from each character (in ASCII).
- *
  * @param input The string to decode.
  * @param len The length of the string.
- * 
  * @return The decoded string or NULL if malloc failed.
- * 
  * @note The returned string must be freed by the caller.
 */
 unsigned char* decode(unsigned char* input, size_t len) {

@@ -23,7 +23,6 @@
 
 /*
  * @brief The copy options.
- *
  * @note OPT_NONE - No options (default).
  * @note OPT_VERBOSE - Print the copied file.
  * @note OPT_FORCE - Force the copy even if the file already exists.
@@ -36,7 +35,6 @@ typedef enum {
 
 /*
  * @brief The copy result.
- *
  * @note SUCCESS - The copy was successful.
  * @note FAILURE - An error occurred (e.g. file not found).
 */
@@ -47,13 +45,10 @@ typedef enum {
 
 /*
  * @brief Copy a file to another file.
-
  * @param f1 First file to copy (required).
  * @param f2 Second file to copy to (required).
- * 
  * @return 0 if the copy was successful.
  * @return 1 if an error occurred (e.g. file not found).
- * 
  * @note The user can provide the -v option to print the copied file.
  * @note The user can provide the -f option to force the copy even if the file already exists.
 */

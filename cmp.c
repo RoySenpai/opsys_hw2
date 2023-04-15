@@ -23,7 +23,6 @@
 
 /*
  * @brief Options for the cmp commands.
- *
  * @note OPT_NONE - no options (default).
  * @note OPT_IGNORE_CASE - ignore case when comparing.
  * @note OPT_VERBOSE - verbose output (print equal or distinct).
@@ -36,7 +35,6 @@ typedef enum {
 
 /*
  * @brief Result of the comparison.
- *
  * @note EQUAL - The files are equal.
  * @note DISTINCT - The files are distinct, or an error occurred (e.g. file not found).
 */
@@ -47,14 +45,11 @@ typedef enum {
 
 /*
  * @brief Compare two files and print the result.
- *
  * @param f1 First file to compare (required).
  * @param f2 Second file to compare (required).
  * @param options Options for the cmp command (optional).
- * 
  * @return 0 if the files are equal (not distinct).
  * @return 1 if they are distinct (not equal) or if an error occurred (e.g. file not found).
- * 
  * @note The user can provide the -i option to ignore case when comparing.
  * @note The user can provide the -v option to print the result (equal or distinct).
 */
