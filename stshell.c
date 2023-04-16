@@ -350,7 +350,7 @@ Result cmdCD(char *path, int argc) {
 
 void execute_command(char** argv) {
 	pid_t pid;
-	int status, waited;
+	int status;
 	//int pipemode[MAX_ARGS] =  { 0 };
 
 	if (DEBUG_MODE)
@@ -388,6 +388,10 @@ void execute_command(char** argv) {
 	// Child process, execute the command, and print an error if it fails.
 	if (pid == 0)
 	{
+		// Restore the default signal handler for SIGINT.
+		signal(SIGINT, SIG_DFL);
+
+		// Execute the command.
 		if (execvp(*argv, argv) == -1)
 		{
 			fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
@@ -402,10 +406,7 @@ void execute_command(char** argv) {
 	// as we don't support background processes (this is too advanced for this assignment).
 	else
 	{
-		do
-			waited = waitpid(pid, &status, WNOHANG);
-		
-		while (waited != pid);
+		waitpid(pid, &status, 0);
 
 		if (DEBUG_MODE)
 		{
