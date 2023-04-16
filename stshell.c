@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <strings.h>
 #include <string.h>
@@ -350,8 +351,7 @@ Result cmdCD(char *path, int argc) {
 
 void execute_command(char** argv) {
 	pid_t pid;
-	int status;
-	//int pipemode[MAX_ARGS] =  { 0 };
+	int status, i = 0, num_pipes = 0, num_redirects = 0;
 
 	if (DEBUG_MODE)
 	{
@@ -361,48 +361,189 @@ void execute_command(char** argv) {
 			fprintf(stdout, "Argument: %s\n", (*argv + i));
 	}
 
-	// Check if the command is a pipe command (|, >, >> or <).
-	/*for (int i = 0; i < MAX_ARGS && ((*argv + i) != NULL); ++i)
+	while (*(argv + i) != NULL)
 	{
-		if (strcmp((*argv + i), "|") == 0)
-			pipemode[i] = 1;
+		if (strcmp(*(argv + i), "|") == 0)
+			num_pipes++;
 
-		else if (strcmp((*argv + i), ">") == 0)
-			pipemode[i] = 2;
+		else if (strcmp(*(argv + i), ">") == 0 || strcmp(*(argv + i), "<") == 0 || strcmp(*(argv + i), ">>") == 0)
+			num_redirects++;
 
-		else if (strcmp((*argv + i), ">>") == 0)
-			pipemode[i] = 3;
-
-		else if (strcmp((*argv + i), "<") == 0)
-			pipemode[i] = 4;
-	}*/
-
-	pid = fork();
-
-	if (pid < 0)
-	{
-		fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
-		exit(EXIT_FAILURE);
+		i++;
 	}
 
-	// Child process, execute the command, and print an error if it fails.
-	if (pid == 0)
+	// No pipes or redirects, just execute the command normally.
+	// This is the most common case and the easiest to handle.
+	// We just need to fork the process, and execute the command in the child process.
+	if (num_pipes == 0 && num_redirects == 0)
 	{
-		// Restore the default signal handler for SIGINT.
-		signal(SIGINT, SIG_DFL);
+		pid = fork();
 
-		// Execute the command.
-		if (execvp(*argv, argv) == -1)
+		if (pid < 0)
 		{
 			fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
 			exit(EXIT_FAILURE);
 		}
 
-		// Exit the child process, since execvp replaces the child process with the command.
-		exit(EXIT_SUCCESS);
+		// Child process, execute the command, and print an error if it fails.
+		if (pid == 0)
+		{
+			// Restore the default signal handler for SIGINT.
+			signal(SIGINT, SIG_DFL);
+
+			// Execute the command.
+			if (execvp(*argv, argv) == -1)
+			{
+				fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
+				exit(EXIT_FAILURE);
+			}
+
+			// Exit the child process, since execvp replaces the child process with the command.
+			exit(EXIT_SUCCESS);
+		}
+
+		// Parent process, wait for the child process to finish, 
+		// as we don't support background processes (this is too advanced for this assignment).
+		else
+		{
+			waitpid(pid, &status, 0);
+
+			if (DEBUG_MODE)
+			{
+				if (WIFEXITED(status))
+					fprintf(stdout, "Child process (%d) exited normally with status %d.\n", pid, WEXITSTATUS(status));
+
+				else if (WIFSIGNALED(status))
+					fprintf(stdout, "Child process (%d) was terminated by a signal (%d).\n", pid, WTERMSIG(status));
+
+				else if (WIFSTOPPED(status))
+					fprintf(stdout, "Child process (%d) was stopped by a signal (%d).\n", pid, WSTOPSIG(status));
+			}
+		}
 	}
 
-	// Parent process, wait for the child process to finish, 
+	// Pipes and redirects handling.
+	// We need to handle pipes and redirects separately, because we need to know the next argument.
+	// This part was literally the hardest part of the assignment, because we couldn't figure out how to do it.
+	// Oh well, it works now, WITH UNLIMITED PIPES AND REDIRECTS!
+	else
+	{
+		char **args = argv;
+		char *redirect_file;
+		int pipe_fd[2];
+		int input_fd = STDIN_FILENO, output_fd = STDOUT_FILENO, redirect_fd = -1;
+
+		// Loop through all the arguments.
+		// We need to loop through all the arguments, because we need to find the pipes and redirects.
+		// We also need to find the end of the command, so we can execute it.
+		// We can't just execute the command when we find a pipe or redirect, because we need to know the next argument.
+		while (*args != NULL)
+		{
+			// Pipe handling.
+			if (strcmp(*args, "|") == 0)
+			{
+				// Create a pipe.
+				if (pipe(pipe_fd) == -1)
+				{
+					fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
+					exit(EXIT_FAILURE);
+				}
+
+				// Execute the command.
+				execute_command_piped(argv, input_fd, *(pipe_fd + 1));
+
+				// Close the write end of the pipe.
+				close(*(pipe_fd + 1));
+
+				// Set the read end of the pipe as the input for the next command.
+				input_fd = *pipe_fd;
+
+				// Move to the next argument.
+				argv = args + 1;
+			}
+
+			// Redirect handling.
+			else if (strcmp(*args, ">") == 0 || strcmp(*args, "<") == 0 || strcmp(*args, ">>") == 0)
+			{
+				// Get the file name.
+				redirect_file = *(args + 1);
+
+				// Output redirection.
+				if (strcmp(*args, ">") == 0)
+					redirect_fd = open(redirect_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+
+				// Input redirection.
+				else if (strcmp(*args, "<") == 0)
+					redirect_fd = open(redirect_file, O_RDONLY);
+
+				// Append redirection.
+				else if (strcmp(*args, ">>") == 0)
+					redirect_fd = open(redirect_file, O_WRONLY | O_CREAT | O_APPEND, 0644);
+
+				// Error handling.
+				if (redirect_fd == -1)
+				{
+					fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
+					exit(EXIT_FAILURE);
+				}
+
+				// Execute the command.
+				execute_command_piped(argv, input_fd, redirect_fd);
+
+				close(redirect_fd);
+
+				argv = args + 2;
+			}
+
+			args++;
+		}
+
+		// Execute the last command.
+		execute_command_piped(argv, input_fd, output_fd);
+	}
+}
+
+void execute_command_piped(char **args, int input_fd, int output_fd) {
+	pid_t pid;
+	int status;
+
+	pid = fork();
+
+	if (pid < 0)
+	{
+		fprintf(stderr, "%s: %s", ERR_SYSCALL, strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+
+	// Child process, execute the command, and print an error if it fails.
+	// The input and output file descriptors are passed as parameters.
+	// The input file descriptor is used as the standard input, and the output file descriptor is used as the standard output.
+	// The input and output file descriptors are closed after they are used.
+	else if (pid == 0)
+	{
+		// Restore the default signal handler for SIGINT.
+		signal(SIGINT, SIG_DFL);
+
+		if (input_fd != STDIN_FILENO)
+		{
+			dup2(input_fd, STDIN_FILENO);
+			close(input_fd);
+		}
+
+		if (output_fd != STDOUT_FILENO)
+		{
+			dup2(output_fd, STDOUT_FILENO);
+			close(output_fd);
+		}
+
+		if (execvp(*args, args) == -1)
+		{
+			fprintf(stderr, "%s: %s", ERR_SYSCALL, strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+	} 
+	
+	// Parent process, wait for the child process to finish,
 	// as we don't support background processes (this is too advanced for this assignment).
 	else
 	{

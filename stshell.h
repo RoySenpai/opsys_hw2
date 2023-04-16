@@ -266,4 +266,13 @@ Result cmdCD(char *path, int argc);
  */
 void execute_command(char** argv);
 
+/*
+ * @brief Execute a command in piped/redirection mode.
+ * @param args The array of arguments.
+ * @param input_fd The input file descriptor.
+ * @param output_fd The output file descriptor.
+ * @return void (nothing).
+*/
+void execute_command_piped(char **args, int input_fd, int output_fd);
+
 #endif

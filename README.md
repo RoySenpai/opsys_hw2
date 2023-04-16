@@ -13,7 +13,7 @@
 * **Students Shell (stshell)** – A small shell program that supports the following features:
   1. Be able to run CMD tools that exist on system.
   2. Be able to stop running tool by pressing Ctrl+C, but not killing the shell itself.
-  3. Be able to redirect output with ">" and ">>", and allow piping with "|".
+  3. Be able to redirect output with ">" and ">>", and allow piping with "|" (unlimited pipes).
   4. Be able to stop itself by "exit" command.
 
 ## Requirements
@@ -58,4 +58,22 @@ export LD_LIBRARY_PATH="."
 
 # Run the students shell.
 ./stshell
+
+# Run the compering files program via student shell.
+cmp <file1> <file2> [-iv]
+
+# Run the copying files program via student shell.
+copy <src> <dest> [-fv]
+
+# Run the encoder program with codecA via student shell.
+encode codecA text
+
+# Run the encoder program with codecB via student shell.
+encode codecB text
+
+# Run the decoder program with codecA via student shell.
+decode codecA text
+
+# Run the decoder program with codecB via student shell.
+decode codecB text
 ```
