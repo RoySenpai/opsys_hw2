@@ -60,6 +60,13 @@
  */
 #define MAX_PATH_LENGTH 512
 
+/*
+ * @brief Maximum user name length.
+ * @note User names longer than this will be truncated.
+ * @note The default value is 64 characters.
+*/
+#define MAX_USER_NAME_LENGTH 64
+
 
 /*******************/
 /* Program details */

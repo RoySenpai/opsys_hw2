@@ -33,7 +33,7 @@ char *cwd = NULL;
 
 int main(void) {
 	char **argv = NULL;
-	char command[MAX_COMMAND_LENGTH + 1] = {0};
+	char command[MAX_COMMAND_LENGTH + 1] = { 0 };
 
 	cwd = (char*) calloc((MAX_PATH_LENGTH + 1), sizeof(char));
 	argv = (char**) calloc((MAX_ARGS + 1), sizeof(char*));
@@ -83,9 +83,18 @@ int main(void) {
 			}
 		}
 
+		// Prepare to print beutiful prompt.
+		char* user_name = getenv("USER");
+		char* cwd_changed = (char*) malloc((MAX_PATH_LENGTH + 1) * sizeof(char));
+		strcpy(cwd_changed + 1, cwd + strlen(homedir));
+		*cwd_changed = '~';
+
 		// Print the prompt.
-		fprintf(stdout, "%s %s", cwd, "> ");
+		fprintf(stdout, "%s@%s%s", user_name, (strstr(cwd, homedir) == NULL ? cwd:cwd_changed), "$ ");
 		fflush(stdout);
+
+		// Free the memory allocated for the prompt.
+		free(cwd_changed);
 
 		// Read a command from the user.
 		fgets(command, MAX_COMMAND_LENGTH, stdin);
@@ -342,15 +351,31 @@ Result cmdCD(char *path, int argc) {
 void execute_command(char** argv) {
 	pid_t pid;
 	int status, waited;
+	//int pipemode[MAX_ARGS] =  { 0 };
 
 	if (DEBUG_MODE)
 	{
-		char** tmp = argv;
-		fprintf(stdout, "Executing external command: %s.\n",*tmp++);
+		fprintf(stdout, "Executing external command: %s.\n",*argv);
 
-		while (*tmp != NULL)
-			fprintf(stdout, "Argument: %s\n", *tmp++);
+		for (int i = 1; i < MAX_ARGS && ((*argv + i) != NULL); ++i)
+			fprintf(stdout, "Argument: %s\n", (*argv + i));
 	}
+
+	// Check if the command is a pipe command (|, >, >> or <).
+	/*for (int i = 0; i < MAX_ARGS && ((*argv + i) != NULL); ++i)
+	{
+		if (strcmp((*argv + i), "|") == 0)
+			pipemode[i] = 1;
+
+		else if (strcmp((*argv + i), ">") == 0)
+			pipemode[i] = 2;
+
+		else if (strcmp((*argv + i), ">>") == 0)
+			pipemode[i] = 3;
+
+		else if (strcmp((*argv + i), "<") == 0)
+			pipemode[i] = 4;
+	}*/
 
 	pid = fork();
 
