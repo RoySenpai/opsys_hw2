@@ -26,6 +26,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <limits.h>
 #include "stshell.h"
 
 char *homedir = NULL;
@@ -86,7 +87,23 @@ int main(void) {
 
 		// Prepare to print beutiful prompt.
 		char* user_name = getenv("USER");
-		char* cwd_changed = (char*) malloc((MAX_PATH_LENGTH + 1) * sizeof(char));
+		char* cwd_changed = (char*) calloc((MAX_PATH_LENGTH + 1), sizeof(char));
+
+		if (cwd_changed == NULL)
+		{
+			fprintf(stderr, "%s: calloc error (%s)\n", ERR_SYSCALL, strerror(errno));
+
+			// Memory cleanup in case of malloc error.
+			for (size_t i = 0; i < MAX_ARGS; ++i)
+				free(*(argv + i));
+
+			free(argv);
+			free(cwd);
+			free(cwd_changed);
+
+			return EXIT_FAILURE;
+		}
+
 		strcpy(cwd_changed + 1, cwd + strlen(homedir));
 		*cwd_changed = '~';
 
@@ -449,6 +466,9 @@ void execute_command(char** argv) {
 					exit(EXIT_FAILURE);
 				}
 
+				// Move to the next argument.
+				argv = args + 1;
+
 				// Execute the command.
 				execute_command_piped(argv, input_fd, *(pipe_fd + 1));
 
@@ -457,9 +477,6 @@ void execute_command(char** argv) {
 
 				// Set the read end of the pipe as the input for the next command.
 				input_fd = *pipe_fd;
-
-				// Move to the next argument.
-				argv = args + 1;
 			}
 
 			// Redirect handling.
