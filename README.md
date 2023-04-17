@@ -12,9 +12,10 @@
 * **Encoder (encode) and Decoder (decode)** – A small program that uses a shared library (codec) to encode a given text. libcodecA.so covert all lower case chars to upper case, and all upper case to lower case. All other chars will remain unchanged. libcodecB.so convert all chars to the 3-rd next char (adding a number of 3 to the ASCII value). The codecs are reversiable functions, meaning they have encoders and decoders.
 * **Students Shell (stshell)** – A small shell program that supports the following features:
   1. Be able to run CMD tools that exist on system.
-  2. Be able to stop running tool by pressing Ctrl+C, but not killing the shell itself.
-  3. Be able to redirect output with ">" and ">>", and allow piping with "|" (unlimited pipes).
-  4. Be able to stop itself by "exit" command.
+  2. Be able to stop running tool by pressing `Ctrl+C`, but not killing the shell itself.
+  3. Be able to redirect output with ">" and ">>", and allow piping with "|" (up to 2 pipes). Redirection with pieping is allowed.
+  4. Be able to stop itself by `exit` command.
+  * The student shell also support `cd`, `pwd` and `clear` commands and all the assignment programs from part A and part B.
 
 ## Requirements
 
@@ -66,14 +67,14 @@ cmp <file1> <file2> [-iv]
 copy <src> <dest> [-fv]
 
 # Run the encoder program with codecA via student shell.
-encode codecA text
+encode codecA "text"
 
 # Run the encoder program with codecB via student shell.
-encode codecB text
+encode codecB "text"
 
 # Run the decoder program with codecA via student shell.
-decode codecA text
+decode codecA "text"
 
 # Run the decoder program with codecB via student shell.
-decode codecB text
+decode codecB "text"
 ```

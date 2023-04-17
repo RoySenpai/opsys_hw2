@@ -96,6 +96,24 @@
 */
 #define ERR_SYSCALL "System call faliure"
 
+/*
+ * @brief Redirecting output to a file in the first pipe is not allowed.
+ * @note Used to indicate that the user tried to redirect output to a file in the first pipe.
+*/
+#define ERR_REDIRECT_OUT_IN_FIRST_PIPE "Error: Redirecting output to a file in the first pipe is not allowed"
+
+/*
+ * @brief Redirecting between pipes is not allowed.
+ * @note Used to indicate that the user tried to redirect between pipes.
+*/
+#define ERR_REDIRECT_BETWEEN_PIPES "Error: Redirecting between pipes is not allowed"
+
+/*
+ * @brief Redirecting input from a file in the last pipe is not allowed.
+ * @note Used to indicate that the user tried to redirect input from a file in the last pipe.
+*/
+#define ERR_REDIRECT_IN_IN_LAST_PIPE "Error: Redirecting input from a file in the last pipe is not allowed"
+
 /* 
  * @brief Change directory error message: no such file or directory.
  * @note Used to indicate a change directory failure, and print the error.
@@ -106,19 +124,19 @@
  * @brief Change directory error message: too many arguments.
  * @note Used to indicate that the used provided too many arguments to the cd command.
 */
-#define ERR_CMD_CD_ARG "cd: Too many arguments"
-
-/*
- * @brief Command not found error message.
- * @note Used to indicate that the command was not found.
-*/
-#define ERR_CMD_NOT_FOUND "Command not found"
+#define ERR_CMD_CD_ARG "cd: Too many arguments provided"
 
 /*
  * @brief Too many arguments error message.
  * @note Used to indicate that the user provided too many arguments to the command.
 */
-#define ERR_TOO_MANY_ARGS "Too many arguments"
+#define ERR_TOO_MANY_ARGS "Error: Too many arguments, maximum is 10"
+
+/*
+ * @brief Too many pipes error message.
+ * @note Used to indicate that the user provided too many pipes.
+*/
+#define ERR_TOO_MANY_PIPE "Error: Too many pipes, maximum is 2"
 
 
 /*******************/
@@ -226,7 +244,6 @@ typedef enum _Result
     Failure = 1
 } Result;
 
-
 /*************************/
 /* Function declarations */
 /*************************/
@@ -265,14 +282,5 @@ Result cmdCD(char *path, int argc);
  * @return void (nothing).
  */
 void execute_command(char** argv);
-
-/*
- * @brief Execute a command in piped/redirection mode.
- * @param args The array of arguments.
- * @param input_fd The input file descriptor.
- * @param output_fd The output file descriptor.
- * @return void (nothing).
-*/
-void execute_command_piped(char **args, int input_fd, int output_fd);
 
 #endif

@@ -18,6 +18,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <strings.h>
@@ -26,7 +27,7 @@
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <limits.h>
+#include <sys/utsname.h>
 #include "stshell.h"
 
 char *homedir = NULL;
@@ -36,11 +37,19 @@ char *cwd = NULL;
 int main(void) {
 	char **argv = NULL;
 	char command[MAX_COMMAND_LENGTH + 1] = { 0 };
+	struct utsname sysinfo;
+
+	if (uname(&sysinfo) == -1)
+	{
+        fprintf(stderr, "%s: uname error (%s)\n", ERR_SYSCALL, strerror(errno));
+		return EXIT_FAILURE;
+	}
 
 	cwd = (char*) calloc((MAX_PATH_LENGTH + 1), sizeof(char));
+	workingdir = (char*) calloc((MAX_PATH_LENGTH + 1), sizeof(char));
 	argv = (char**) calloc((MAX_ARGS + 1), sizeof(char*));
 
-	if (cwd == NULL || argv == NULL)
+	if (cwd == NULL || workingdir == NULL || argv == NULL)
 	{
 		fprintf(stderr, "%s: calloc error (%s)\n", ERR_SYSCALL, strerror(errno));
 		return EXIT_FAILURE;
@@ -80,6 +89,7 @@ int main(void) {
 
 				free(argv);
 				free(cwd);
+				free(workingdir);
 
 				return EXIT_FAILURE;
 			}
@@ -108,7 +118,7 @@ int main(void) {
 		*cwd_changed = '~';
 
 		// Print the prompt.
-		fprintf(stdout, "%s@%s%s", user_name, (strstr(cwd, homedir) == NULL ? cwd:cwd_changed), "$ ");
+		fprintf(stdout, "%s@%s:%s%s", user_name, sysinfo.nodename, (strstr(cwd, homedir) == NULL ? cwd:cwd_changed), "$ ");
 		fflush(stdout);
 
 		// Free the memory allocated for the prompt.
@@ -137,7 +147,10 @@ int main(void) {
 
 		// Clear the arguments.
 		for (size_t i = 0; i < MAX_ARGS; ++i)
-			free(*(argv + i));
+		{
+			if (*(argv + i) != NULL)
+				free(*(argv + i));
+		}
 
 		// Clear the command.
 		bzero(command, (MAX_COMMAND_LENGTH + 1));
@@ -174,7 +187,6 @@ CommandType parse_command(char* command, char** argv) {
 	char **pargv = argv;
 	char* token = NULL;
 	int words = 1;
-	size_t i = 0, j = 0;
 
 	// Remove the newline character from the command, to check if it's empty.
 	command = strtok(command, "\n");
@@ -196,22 +208,6 @@ CommandType parse_command(char* command, char** argv) {
 		return Internal;
 	}
 
-	// Remove quotes from the command.
-	for (i = 0; i < strlen(command); ++i)
-	{
-		if (*(command + i) != '"' && *(command + i) != '\\')
-			*(command + j++) = *(command + i);
-
-		else if (*(command + i + 1) == '"' && *(command + i) == '\\')
-			*(command + j++) = '"';
-
-		else if (*(command + i + 1) != '"' && *(command + i) == '\\')
-			*(command + j++) = '\\';
-	}
-
-	if (j > 0)
-		*(command + j) = '\0';
-
 	// Parse the first argument (the command itself).
 	token = strtok(command, " ");
 
@@ -220,13 +216,19 @@ CommandType parse_command(char* command, char** argv) {
 	{
 		// Free the memory allocated for the arguments.
 		for (size_t i = 0; i < MAX_ARGS; ++i)
-			free(*(argv + i));
+		{
+			if (*(argv + i) != NULL)
+				free(*(argv + i));
+		}
 
 		// Free the memory allocated for the arguments array.
 		free(argv);
 
 		// Free the memory allocated for the current working directory.
 		free(cwd);
+
+		// Free the memory allocated for the working directory (privous directory, before changing to the current one).
+		free(workingdir);
 
 		// Exit the program.
         exit(EXIT_SUCCESS);
@@ -266,6 +268,41 @@ CommandType parse_command(char* command, char** argv) {
 	// Parse the arguments (if there are any).
 	while (token != NULL)
 	{
+		if (*token == '"' && strlen(token) > 1)
+		{
+			char* tmp = (char*)calloc((MAX_ARG_LENGTH + 1), sizeof(char));
+
+			if (tmp == NULL)
+			{
+				fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
+				return Internal;
+			}
+
+			strcpy(tmp, (token + 1));
+
+			while (token != NULL)
+			{
+				token = strtok(NULL, "\"");
+
+				if (token != NULL)
+				{
+					strcat(tmp, " ");
+					strcat(tmp, token);
+				}
+			}
+
+			if (*(tmp + strlen(tmp) - 1) == '"')
+				*(tmp + strlen(tmp) - 1) = '\0';
+
+			memcpy(*pargv, tmp, strlen(tmp));
+			++pargv;
+			token = strtok(NULL, " ");
+
+			free(tmp);
+
+			continue;
+		}
+
 		memcpy(*pargv, token, strlen(token));
 		++pargv;
 		token = strtok(NULL, " ");
@@ -340,6 +377,10 @@ Result cmdCD(char *path, int argc) {
 				fprintf(stderr, "%s\n", ERR_SYSCALL);
 				return Failure;
 			}
+
+			getcwd(workingdir, MAX_PATH_LENGTH);
+
+			return Success;
 		}
 
 		getcwd(workingdir, MAX_PATH_LENGTH);
@@ -368,31 +409,31 @@ Result cmdCD(char *path, int argc) {
 
 void execute_command(char** argv) {
 	pid_t pid;
-	int status, i = 0, num_pipes = 0, num_redirects = 0;
+	int status, i = 0, num_pipes = 0;
+	bool redirect = false;
 
 	if (DEBUG_MODE)
 	{
-		fprintf(stdout, "Executing external command: %s.\n",*argv);
+		fprintf(stdout, "Executing external command: %s\n", *argv);
 
-		for (int i = 1; i < MAX_ARGS && ((*argv + i) != NULL); ++i)
-			fprintf(stdout, "Argument: %s\n", (*argv + i));
+		for (int i = 1; i < MAX_ARGS && (*(argv + i) != NULL); ++i)
+			fprintf(stdout, "Argument %d: %s\n", i, *(argv + i));
 	}
 
-	while (*(argv + i) != NULL)
+    while (*(argv + i) != NULL)
 	{
-		if (strcmp(*(argv + i), "|") == 0)
-			num_pipes++;
+        if (strcmp(*(argv + i), "|") == 0)
+            num_pipes++;
 
-		else if (strcmp(*(argv + i), ">") == 0 || strcmp(*(argv + i), "<") == 0 || strcmp(*(argv + i), ">>") == 0)
-			num_redirects++;
+		else if (strcmp(*(argv + i), ">") == 0 || strcmp(*(argv + i), ">>") == 0 || strcmp(*(argv + i), "<") == 0)
+			redirect = true;
 
 		i++;
-	}
+    }
 
 	// No pipes or redirects, just execute the command normally.
 	// This is the most common case and the easiest to handle.
-	// We just need to fork the process, and execute the command in the child process.
-	if (num_pipes == 0 && num_redirects == 0)
+	if (num_pipes == 0 && !redirect)
 	{
 		pid = fork();
 
@@ -408,14 +449,12 @@ void execute_command(char** argv) {
 			// Restore the default signal handler for SIGINT.
 			signal(SIGINT, SIG_DFL);
 
-			// Execute the command.
 			if (execvp(*argv, argv) == -1)
 			{
 				fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
 				exit(EXIT_FAILURE);
 			}
 
-			// Exit the child process, since execvp replaces the child process with the command.
 			exit(EXIT_SUCCESS);
 		}
 
@@ -439,143 +478,395 @@ void execute_command(char** argv) {
 		}
 	}
 
-	// Pipes and redirects handling.
-	// We need to handle pipes and redirects separately, because we need to know the next argument.
-	// This part was literally the hardest part of the assignment, because we couldn't figure out how to do it.
-	// Oh well, it works now, WITH UNLIMITED PIPES AND REDIRECTS!
+	// We have pipes and/or redirects, so we need to handle them.
+	// We only support one redirect of each type, and at most two pipes.
+	// This is the hardest case to handle.
+	// We tried our best to make the code as readable as possible, but it's still quite complex.
+	// Good luck reading it ;)
 	else
 	{
-		char **args = argv;
-		char *redirect_file;
-		int pipe_fd[2];
-		int input_fd = STDIN_FILENO, output_fd = STDOUT_FILENO, redirect_fd = -1;
+		pid = fork();
 
-		// Loop through all the arguments.
-		// We need to loop through all the arguments, because we need to find the pipes and redirects.
-		// We also need to find the end of the command, so we can execute it.
-		// We can't just execute the command when we find a pipe or redirect, because we need to know the next argument.
-		while (*args != NULL)
+		if (pid < 0)
 		{
-			// Pipe handling.
-			if (strcmp(*args, "|") == 0)
+			fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
+			exit(EXIT_FAILURE);
+		}
+
+		// Child process, handle the pipes and redirects.
+		else if (pid == 0)
+		{
+			char** argv_cpy = (char**)calloc((MAX_ARGS + 1), sizeof(char*));
+			int input_fd = 0, output_fd = 1, append_fd = 1; // Input and output file descriptors.
+
+			// Copy of argv, so we can modify it without affecting the original.
+			if (argv_cpy == NULL)
 			{
-				// Create a pipe.
+				fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
+				exit(EXIT_FAILURE);
+			}
+
+			memcpy(argv_cpy, argv, (MAX_ARGS + 1) * sizeof(char*));
+
+			// Restore the default signal handler for SIGINT.
+			signal(SIGINT, SIG_DFL);
+
+			// Only a redirection, no pipes.
+			if (num_pipes == 0 && redirect)
+			{
+				while (*(argv + i) != NULL)
+				{
+					if (strcmp(*(argv + i), "<") == 0)
+					{
+						input_fd = open(*(argv + i + 1), O_RDONLY);
+
+						dup2(input_fd, STDIN_FILENO);
+						close(input_fd);
+
+						*(argv_cpy + i) = NULL;
+
+						break;
+					}
+
+					else if (strcmp(*(argv + i), ">") == 0)
+					{
+						output_fd = open(*(argv + i + 1), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+
+						dup2(output_fd, STDOUT_FILENO);
+						close(output_fd);
+
+						*(argv_cpy + i) = NULL;
+
+						break;
+					}
+
+					else if (strcmp(*(argv + i), ">>") == 0)
+					{
+						append_fd = open(*(argv + i + 1), O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
+
+						dup2(append_fd, STDOUT_FILENO);
+						close(append_fd);
+
+						*(argv_cpy + i) = NULL;
+
+						break;
+					}
+
+					i++;
+				}
+
+				if (execvp(*argv_cpy, argv_cpy) == -1)
+				{
+					fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
+					exit(EXIT_FAILURE);
+				}
+
+				exit(EXIT_SUCCESS);
+			}
+
+			else if (num_pipes == 1)
+			{
+				int pipe_fd[2]; // Pipe file descriptors.
+
 				if (pipe(pipe_fd) == -1)
 				{
 					fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
 					exit(EXIT_FAILURE);
 				}
 
-				// Move to the next argument.
-				argv = args + 1;
+				for (i = 0; i < MAX_ARGS && (*(argv + i) != NULL); ++i)
+				{
+					if (strcmp(*(argv + i), "|") == 0)
+					{
+						*(argv_cpy + i) = NULL;
+						break;
+					}
+				}
 
-				// Execute the command.
-				execute_command_piped(argv, input_fd, *(pipe_fd + 1));
+				pid = fork();
 
-				// Close the write end of the pipe.
-				close(*(pipe_fd + 1));
-
-				// Set the read end of the pipe as the input for the next command.
-				input_fd = *pipe_fd;
-			}
-
-			// Redirect handling.
-			else if (strcmp(*args, ">") == 0 || strcmp(*args, "<") == 0 || strcmp(*args, ">>") == 0)
-			{
-				// Get the file name.
-				redirect_file = *(args + 1);
-
-				// Output redirection.
-				if (strcmp(*args, ">") == 0)
-					redirect_fd = open(redirect_file, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-
-				// Input redirection.
-				else if (strcmp(*args, "<") == 0)
-					redirect_fd = open(redirect_file, O_RDONLY);
-
-				// Append redirection.
-				else if (strcmp(*args, ">>") == 0)
-					redirect_fd = open(redirect_file, O_WRONLY | O_CREAT | O_APPEND, 0644);
-
-				// Error handling.
-				if (redirect_fd == -1)
+				if (pid < 0)
 				{
 					fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
 					exit(EXIT_FAILURE);
 				}
 
-				// Execute the command.
-				execute_command_piped(argv, input_fd, redirect_fd);
+				// Child process, handle the first command.
+				else if (pid == 0)
+				{
+					dup2(*(pipe_fd + 1), STDOUT_FILENO);
+					close(*pipe_fd);
+					close(*(pipe_fd + 1));
 
-				close(redirect_fd);
+					// Redirect input if needed.
+					for (int j = 0; j < i; ++j)
+					{
+						if (strcmp(*(argv + j), "<") == 0)
+						{
+							input_fd = open(*(argv + j + 1), O_RDONLY);
 
-				argv = args + 2;
+							dup2(input_fd, STDIN_FILENO);
+							close(input_fd);
+
+							*(argv_cpy + j) = NULL;
+
+							break;
+						}
+
+						else if (strcmp(*(argv + j), ">") == 0 || strcmp(*(argv + j), ">>") == 0)
+						{
+							fprintf(stderr, "%s\n", ERR_REDIRECT_OUT_IN_FIRST_PIPE);
+							exit(EXIT_FAILURE);
+						}
+					}
+
+					if (execvp(*argv_cpy, argv_cpy) == -1)
+					{
+						fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
+						exit(EXIT_FAILURE);
+					}
+
+					exit(EXIT_SUCCESS);
+				}
+
+				// Parent process, handle the second command.
+				else
+				{
+					dup2(*pipe_fd, STDIN_FILENO);
+					close(*pipe_fd);
+					close(*(pipe_fd + 1));
+
+					// Redirect output if needed.
+					for (int j = i + 1; j < MAX_ARGS && (*(argv + j) != NULL); ++j)
+					{
+						if (strcmp(*(argv + j), "<") == 0)
+						{
+							fprintf(stderr, "%s\n", ERR_REDIRECT_IN_IN_LAST_PIPE);
+							exit(EXIT_FAILURE);
+						}
+
+						else if (strcmp(*(argv + j), ">") == 0)
+						{
+							output_fd = open(*(argv + j + 1), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+
+							dup2(output_fd, STDOUT_FILENO);
+							close(output_fd);
+
+							*(argv_cpy + j) = NULL;
+
+							break;
+						}
+
+						else if (strcmp(*(argv + j), ">>") == 0)
+						{
+							append_fd = open(*(argv + j + 1), O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
+
+							dup2(append_fd, STDOUT_FILENO);
+							close(append_fd);
+
+							*(argv_cpy + j) = NULL;
+
+							break;
+						}
+					}
+
+					if (execvp(*(argv_cpy + i + 1), (argv_cpy + i + 1)) == -1)
+					{
+						fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
+						exit(EXIT_FAILURE);
+					}
+
+					exit(EXIT_SUCCESS);
+				}
 			}
 
-			args++;
+			else if (num_pipes == 2)
+			{
+				int pipe_fd[4]; // Pipe file descriptors.
+
+				if (pipe(pipe_fd) == -1 || pipe(pipe_fd + 2) == -1)
+				{
+					fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
+					exit(EXIT_FAILURE);
+				}
+
+				int loc_pipe1 = 0, loc_pipe2 = 0; // Location of the first and second pipe.
+
+				for (i = 0; i < MAX_ARGS && (*(argv + i) != NULL); ++i)
+				{
+					if (strcmp(*(argv + i), "|") == 0)
+					{
+						*(argv_cpy + i) = NULL;
+
+						if (loc_pipe1 == 0)
+							loc_pipe1 = i;
+
+						else
+						{
+							loc_pipe2 = i;
+							break;
+						}
+					}
+				}
+
+				pid = fork();
+
+				if (pid < 0)
+				{
+					fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
+					exit(EXIT_FAILURE);
+				}
+
+				// Child process, handle the first command.
+				else if (pid == 0)
+				{
+					dup2(*(pipe_fd + 1), STDOUT_FILENO);
+					close(*pipe_fd);
+					close(*(pipe_fd + 1));
+					close(*(pipe_fd + 2));
+					close(*(pipe_fd + 3));
+
+					// Redirect input if needed.
+					for (int j = 0; j < loc_pipe1; ++j)
+					{
+						if (strcmp(*(argv + j), "<") == 0)
+						{
+							input_fd = open(*(argv + j + 1), O_RDONLY);
+
+							dup2(input_fd, STDIN_FILENO);
+							close(input_fd);
+
+							*(argv_cpy + j) = NULL;
+
+							break;
+						}
+
+						else if (strcmp(*(argv + j), ">") == 0 || strcmp(*(argv + j), ">>") == 0)
+						{
+							fprintf(stderr, "%s\n", ERR_REDIRECT_OUT_IN_FIRST_PIPE);
+							exit(EXIT_FAILURE);
+						}
+					}
+
+					if (execvp(*argv_cpy, argv_cpy) == -1)
+					{
+						fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
+						exit(EXIT_FAILURE);
+					}
+
+					exit(EXIT_SUCCESS);
+				}
+
+				pid = fork();
+
+				if (pid < 0)
+				{
+					fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
+					exit(EXIT_FAILURE);
+				}
+
+				// Child process, handle the second command.
+				else if (pid == 0)
+				{
+					dup2(*pipe_fd, STDIN_FILENO);
+					dup2(*(pipe_fd + 3), STDOUT_FILENO);
+					close(*pipe_fd);
+					close(*(pipe_fd + 1));
+					close(*(pipe_fd + 2));
+					close(*(pipe_fd + 3));
+
+					for (int j = loc_pipe1 + 1; j < loc_pipe2; ++j)
+					{
+						if (strcmp(*(argv + j), "<") == 0 || strcmp(*(argv + j), ">") == 0 || strcmp(*(argv + j), ">>") == 0)
+						{
+							fprintf(stderr, "%s\n", ERR_REDIRECT_BETWEEN_PIPES);
+							exit(EXIT_FAILURE);
+						}
+					}
+
+					if (execvp(*(argv_cpy + loc_pipe1 + 1), (argv_cpy + loc_pipe1 + 1)) == -1)
+					{
+						fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
+						exit(EXIT_FAILURE);
+					}
+
+					exit(EXIT_SUCCESS);
+				}
+
+				// Parent process, handle the third command.
+				else
+				{
+					dup2(*(pipe_fd + 2), STDIN_FILENO);
+					close(*pipe_fd);
+					close(*(pipe_fd + 1));
+					close(*(pipe_fd + 2));
+					close(*(pipe_fd + 3));
+
+					for (int j = loc_pipe2 + 1; j < MAX_ARGS && (*(argv + j) != NULL); ++j)
+					{
+						if (strcmp(*(argv + j), "<") == 0)
+						{
+							fprintf(stderr, "%s\n", ERR_REDIRECT_IN_IN_LAST_PIPE);
+							exit(EXIT_FAILURE);
+						}
+
+						else if (strcmp(*(argv + j), ">") == 0)
+						{
+							output_fd = open(*(argv + j + 1), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+
+							dup2(output_fd, STDOUT_FILENO);
+							close(output_fd);
+
+							*(argv_cpy + j) = NULL;
+
+							break;
+						}
+
+						else if (strcmp(*(argv + j), ">>") == 0)
+						{
+							append_fd = open(*(argv + j + 1), O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
+
+							dup2(append_fd, STDOUT_FILENO);
+							close(append_fd);
+
+							*(argv_cpy + j) = NULL;
+
+							break;
+						}
+					}
+
+					if (execvp(*(argv_cpy + loc_pipe2 + 1), (argv_cpy + loc_pipe2 + 1)) == -1)
+					{
+						fprintf(stderr, "%s: %s\n", ERR_SYSCALL, strerror(errno));
+						exit(EXIT_FAILURE);
+					}
+				}
+			}
+
+			else
+			{
+				fprintf(stderr, "%s\n", ERR_TOO_MANY_PIPE);
+				exit(EXIT_FAILURE);
+			}
 		}
 
-		// Execute the last command.
-		execute_command_piped(argv, input_fd, output_fd);
-	}
-}
-
-void execute_command_piped(char **args, int input_fd, int output_fd) {
-	pid_t pid;
-	int status;
-
-	pid = fork();
-
-	if (pid < 0)
-	{
-		fprintf(stderr, "%s: %s", ERR_SYSCALL, strerror(errno));
-		exit(EXIT_FAILURE);
-	}
-
-	// Child process, execute the command, and print an error if it fails.
-	// The input and output file descriptors are passed as parameters.
-	// The input file descriptor is used as the standard input, and the output file descriptor is used as the standard output.
-	// The input and output file descriptors are closed after they are used.
-	else if (pid == 0)
-	{
-		// Restore the default signal handler for SIGINT.
-		signal(SIGINT, SIG_DFL);
-
-		if (input_fd != STDIN_FILENO)
+		// Wait for all pipes, redirection and commands to finish.
+		// This can't support background processes, and never will, as it's too advanced for this assignment.
+		else
 		{
-			dup2(input_fd, STDIN_FILENO);
-			close(input_fd);
-		}
+			waitpid(pid, &status, 0);
+			
+			if (DEBUG_MODE)
+			{
+				if (WIFEXITED(status))
+					fprintf(stdout, "Child process (%d) exited normally with status %d.\n", pid, WEXITSTATUS(status));
 
-		if (output_fd != STDOUT_FILENO)
-		{
-			dup2(output_fd, STDOUT_FILENO);
-			close(output_fd);
-		}
+				else if (WIFSIGNALED(status))
+					fprintf(stdout, "Child process (%d) was terminated by a signal (%d).\n", pid, WTERMSIG(status));
 
-		if (execvp(*args, args) == -1)
-		{
-			fprintf(stderr, "%s: %s", ERR_SYSCALL, strerror(errno));
-			exit(EXIT_FAILURE);
-		}
-	} 
-	
-	// Parent process, wait for the child process to finish,
-	// as we don't support background processes (this is too advanced for this assignment).
-	else
-	{
-		waitpid(pid, &status, 0);
-
-		if (DEBUG_MODE)
-		{
-			if (WIFEXITED(status))
-				fprintf(stdout, "Child process (%d) exited normally with status %d.\n", pid, WEXITSTATUS(status));
-
-			else if (WIFSIGNALED(status))
-				fprintf(stdout, "Child process (%d) was terminated by a signal (%d).\n", pid, WTERMSIG(status));
-
-			else if (WIFSTOPPED(status))
-				fprintf(stdout, "Child process (%d) was stopped by a signal (%d).\n", pid, WSTOPSIG(status));
+				else if (WIFSTOPPED(status))
+					fprintf(stdout, "Child process (%d) was stopped by a signal (%d).\n", pid, WSTOPSIG(status));
+			}
 		}
 	}
 }
