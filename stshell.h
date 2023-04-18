@@ -97,6 +97,18 @@
 #define ERR_SYSCALL "System call faliure"
 
 /*
+ * @brief Can't redirect input twice error message.
+ * @note Used to indicate that the user tried to redirect input twice.
+*/
+#define ERR_REDIRECT_IN_TWICE "Error: Can't redirect input twice"
+
+/*
+ * @brief Can't redirect output twice error message.
+ * @note Used to indicate that the user tried to redirect output twice.
+*/
+#define ERR_REDIRECT_OUT_TWICE "Error: Can't redirect output twice"
+
+/*
  * @brief Redirecting output to a file in the first pipe is not allowed.
  * @note Used to indicate that the user tried to redirect output to a file in the first pipe.
 */

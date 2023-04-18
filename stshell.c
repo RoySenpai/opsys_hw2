@@ -514,10 +514,18 @@ void execute_command(char** argv) {
 			// Only a redirection, no pipes.
 			if (num_pipes == 0 && redirect)
 			{
-				while (*(argv + i) != NULL)
+				bool in_mode = false, out_mode = false;
+
+				for (i = 0; (i < MAX_ARGS) && (*(argv + i) != NULL) && !(in_mode && out_mode); ++i)
 				{
 					if (strcmp(*(argv + i), "<") == 0)
 					{
+						if (in_mode)
+						{
+							fprintf(stderr, "%s\n", ERR_REDIRECT_IN_TWICE);
+							exit(EXIT_FAILURE);
+						}
+
 						input_fd = open(*(argv + i + 1), O_RDONLY);
 
 						dup2(input_fd, STDIN_FILENO);
@@ -525,11 +533,17 @@ void execute_command(char** argv) {
 
 						*(argv_cpy + i) = NULL;
 
-						break;
+						in_mode = true;
 					}
 
 					else if (strcmp(*(argv + i), ">") == 0)
 					{
+						if (out_mode)
+						{
+							fprintf(stderr, "%s\n", ERR_REDIRECT_OUT_TWICE);
+							exit(EXIT_FAILURE);
+						}
+
 						output_fd = open(*(argv + i + 1), O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
 
 						dup2(output_fd, STDOUT_FILENO);
@@ -537,11 +551,17 @@ void execute_command(char** argv) {
 
 						*(argv_cpy + i) = NULL;
 
-						break;
+						out_mode = true;
 					}
 
 					else if (strcmp(*(argv + i), ">>") == 0)
 					{
+						if (out_mode)
+						{
+							fprintf(stderr, "%s\n", ERR_REDIRECT_OUT_TWICE);
+							exit(EXIT_FAILURE);
+						}
+						
 						append_fd = open(*(argv + i + 1), O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
 
 						dup2(append_fd, STDOUT_FILENO);
@@ -549,7 +569,7 @@ void execute_command(char** argv) {
 
 						*(argv_cpy + i) = NULL;
 
-						break;
+						out_mode = true;
 					}
 
 					i++;
