@@ -33,25 +33,25 @@
 #define DEBUG_MODE 0
 
 /*
- * @brief Maximum command length.
- * @note Commands longer than this will be truncated.
- * @note The default value is 1024 characters.
- */
-#define MAX_COMMAND_LENGTH 1024
-
-/*
  * @brief Maximum number of arguments.
  * @note More than this number of arguments will be truncated.
- * @note The default value is 10 arguments.
+ * @note The default value is 20 arguments.
  */
-#define MAX_ARGS 10
+#define MAX_ARGS 20
 
 /*
  * @brief Maximum argument length.
  * @note Arguments longer than this will be truncated.
- * @note The default value is 256 characters.
+ * @note The default value is 128 characters.
 */
-#define MAX_ARG_LENGTH 256
+#define MAX_ARG_LENGTH 128
+
+/*
+ * @brief Maximum command length.
+ * @note Commands longer than this will be truncated.
+ * @note The default value is MAX_ARGS * MAX_ARG_LENGTH (5120) characters.
+ */
+#define MAX_COMMAND_LENGTH (MAX_ARGS * MAX_ARG_LENGTH)
 
 /*
  * @brief Maximum path length.

@@ -36,18 +36,18 @@ char *cwd = NULL;
 
 int main(void) {
 	char **argv = NULL;
-	char command[MAX_COMMAND_LENGTH + 1] = { 0 };
+	char command[MAX_COMMAND_LENGTH + 1] = {0};
 	struct utsname sysinfo;
 
 	if (uname(&sysinfo) == -1)
 	{
-        fprintf(stderr, "%s: uname error (%s)\n", ERR_SYSCALL, strerror(errno));
+		fprintf(stderr, "%s: uname error (%s)\n", ERR_SYSCALL, strerror(errno));
 		return EXIT_FAILURE;
 	}
 
-	cwd = (char*) calloc((MAX_PATH_LENGTH + 1), sizeof(char));
-	workingdir = (char*) calloc((MAX_PATH_LENGTH + 1), sizeof(char));
-	argv = (char**) calloc((MAX_ARGS + 1), sizeof(char*));
+	cwd = (char *)calloc((MAX_PATH_LENGTH + 1), sizeof(char));
+	workingdir = (char *)calloc((MAX_PATH_LENGTH + 1), sizeof(char));
+	argv = (char **)calloc((MAX_ARGS + 1), sizeof(char *));
 
 	if (cwd == NULL || workingdir == NULL || argv == NULL)
 	{
@@ -77,11 +77,12 @@ int main(void) {
 
 		for (size_t i = 0; i < MAX_ARGS; ++i)
 		{
-			*(argv + i) = (char*) calloc((MAX_ARG_LENGTH + 1), sizeof(char));
+			*(argv + i) = (char *)calloc((MAX_ARG_LENGTH + 1), sizeof(char));
 
 			if (*(argv + i) == NULL)
 			{
-				fprintf(stderr, "%s: calloc error (%s)\n", ERR_SYSCALL, strerror(errno));;
+				fprintf(stderr, "%s: calloc error (%s)\n", ERR_SYSCALL, strerror(errno));
+				;
 
 				// Memory cleanup in case of calloc error.
 				for (size_t j = 0; j < i; ++j)
@@ -96,8 +97,8 @@ int main(void) {
 		}
 
 		// Prepare to print beutiful prompt.
-		char* user_name = getenv("USER");
-		char* cwd_changed = (char*) calloc((MAX_PATH_LENGTH + 1), sizeof(char));
+		char *user_name = getenv("USER");
+		char *cwd_changed = (char *)calloc((MAX_PATH_LENGTH + 1), sizeof(char));
 
 		if (cwd_changed == NULL)
 		{
@@ -118,7 +119,7 @@ int main(void) {
 		*cwd_changed = '~';
 
 		// Print the prompt.
-		fprintf(stdout, "%s@%s:%s%s", user_name, sysinfo.nodename, (strstr(cwd, homedir) == NULL ? cwd:cwd_changed), "$ ");
+		fprintf(stdout, "%s@%s:%s%s", user_name, sysinfo.nodename, (strstr(cwd, homedir) == NULL ? cwd : cwd_changed), "$ ");
 		fflush(stdout);
 
 		// Free the memory allocated for the prompt.
@@ -126,7 +127,7 @@ int main(void) {
 
 		// Read a command from the user.
 		fgets(command, MAX_COMMAND_LENGTH, stdin);
-		
+
 		// Check if the command is an internal command.
 		if (parse_command(command, argv) == Internal)
 		{
@@ -164,29 +165,30 @@ int main(void) {
 }
 
 char *append(char before, char *str, char after) {
-    size_t len = strlen(str);
+	size_t len = strlen(str);
 
-    if(before)
-    {
+	if (before)
+	{
 		for (size_t i = len; i > 0; --i)
 			*(str + i) = *(str + i - 1);
 
-    	*str = before;
-    }
+		*str = before;
+	}
 
-    if(after)
-    {
-        *(str + len) = after;
-        *(str + len + 1) = '\0';
-    }
+	if (after)
+	{
+		*(str + len) = after;
+		*(str + len + 1) = '\0';
+	}
 
-    return str;
+	return str;
 }
 
-CommandType parse_command(char* command, char** argv) {
+CommandType parse_command(char *command, char **argv) {
 	char **pargv = argv;
-	char* token = NULL;
+	char *token = NULL;
 	int words = 1;
+	bool inQuotes = false;
 
 	// Remove the newline character from the command, to check if it's empty.
 	command = strtok(command, "\n");
@@ -198,7 +200,10 @@ CommandType parse_command(char* command, char** argv) {
 	// Count the number of words.
 	for (size_t k = 0; k < strlen(command); ++k)
 	{
-		if (*(command + k) == ' ' && *(command + k + 1) != ' ')
+		if (*(command + k) == '"')
+			inQuotes = !inQuotes;
+
+		if (!inQuotes && *(command + k) == ' ' && *(command + k + 1) != ' ')
 			++words;
 	}
 
@@ -231,7 +236,7 @@ CommandType parse_command(char* command, char** argv) {
 		free(workingdir);
 
 		// Exit the program.
-        exit(EXIT_SUCCESS);
+		exit(EXIT_SUCCESS);
 	}
 
 	// Change directory command.
@@ -270,7 +275,7 @@ CommandType parse_command(char* command, char** argv) {
 	{
 		if (*token == '"' && strlen(token) > 1)
 		{
-			char* tmp = (char*)calloc((MAX_ARG_LENGTH + 1), sizeof(char));
+			char *tmp = (char *)calloc((MAX_ARG_LENGTH + 1), sizeof(char));
 
 			if (tmp == NULL)
 			{
@@ -389,7 +394,7 @@ Result cmdCD(char *path, int argc) {
 		{
 			fprintf(stderr, "%s\n", ERR_CMD_CD);
 			return Failure;
-		}		
+		}
 	}
 
 	// No arguments - go to home directory.
@@ -407,7 +412,7 @@ Result cmdCD(char *path, int argc) {
 	return Success;
 }
 
-void execute_command(char** argv) {
+void execute_command(char **argv) {
 	pid_t pid;
 	int status, i = 0, num_pipes = 0;
 	bool redirect = false;
@@ -420,16 +425,16 @@ void execute_command(char** argv) {
 			fprintf(stdout, "Argument %d: %s\n", i, *(argv + i));
 	}
 
-    while (*(argv + i) != NULL)
+	while (*(argv + i) != NULL)
 	{
-        if (strcmp(*(argv + i), "|") == 0)
-            num_pipes++;
+		if (strcmp(*(argv + i), "|") == 0)
+			num_pipes++;
 
 		else if (strcmp(*(argv + i), ">") == 0 || strcmp(*(argv + i), ">>") == 0 || strcmp(*(argv + i), "<") == 0)
 			redirect = true;
 
 		i++;
-    }
+	}
 
 	// No pipes or redirects, just execute the command normally.
 	// This is the most common case and the easiest to handle.
@@ -458,7 +463,7 @@ void execute_command(char** argv) {
 			exit(EXIT_SUCCESS);
 		}
 
-		// Parent process, wait for the child process to finish, 
+		// Parent process, wait for the child process to finish,
 		// as we don't support background processes (this is too advanced for this assignment).
 		else
 		{
@@ -496,7 +501,7 @@ void execute_command(char** argv) {
 		// Child process, handle the pipes and redirects.
 		else if (pid == 0)
 		{
-			char** argv_cpy = (char**)calloc((MAX_ARGS + 1), sizeof(char*));
+			char **argv_cpy = (char **)calloc((MAX_ARGS + 1), sizeof(char *));
 			int input_fd = 0, output_fd = 1, append_fd = 1; // Input and output file descriptors.
 
 			// Copy of argv, so we can modify it without affecting the original.
@@ -506,7 +511,7 @@ void execute_command(char** argv) {
 				exit(EXIT_FAILURE);
 			}
 
-			memcpy(argv_cpy, argv, (MAX_ARGS + 1) * sizeof(char*));
+			memcpy(argv_cpy, argv, (MAX_ARGS + 1) * sizeof(char *));
 
 			// Restore the default signal handler for SIGINT.
 			signal(SIGINT, SIG_DFL);
@@ -561,7 +566,7 @@ void execute_command(char** argv) {
 							fprintf(stderr, "%s\n", ERR_REDIRECT_OUT_TWICE);
 							exit(EXIT_FAILURE);
 						}
-						
+
 						append_fd = open(*(argv + i + 1), O_WRONLY | O_CREAT | O_APPEND, S_IRUSR | S_IWUSR);
 
 						dup2(append_fd, STDOUT_FILENO);
@@ -875,7 +880,7 @@ void execute_command(char** argv) {
 		else
 		{
 			waitpid(pid, &status, 0);
-			
+
 			if (DEBUG_MODE)
 			{
 				if (WIFEXITED(status))
